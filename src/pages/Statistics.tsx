@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -14,6 +13,8 @@ import XPBar from '@/components/gamification/XPBar';
 import InsightCard from '@/components/gamification/InsightCard';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 
+import { Habit, DailyLog, HabitCategory } from '@/lib/types';
+
 const COLORS = ['#7C5CFC', '#4ECDC4', '#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#FF8FB1', '#A66CFF'];
 
 const pageVariants = {
@@ -25,7 +26,16 @@ const itemVariants = {
   animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 340, damping: 28 } },
 };
 
-function StatCard({ icon: Icon, label, value, color = 'text-primary', gradFrom, gradTo }) {
+interface StatCardProps {
+  icon: any;
+  label: string;
+  value: string | number;
+  color?: string;
+  gradFrom?: string;
+  gradTo?: string;
+}
+
+function StatCard({ icon: Icon, label, value, color = 'text-primary', gradFrom, gradTo }: StatCardProps) {
   return (
     <motion.div variants={itemVariants}
       className="relative rounded-2xl overflow-hidden card-shadow p-4"
@@ -48,8 +58,8 @@ const tooltipStyle = {
 };
 
 export default function Statistics() {
-  const { data: habits = [] } = useQuery({ queryKey: ['habits'], queryFn: HabitRepository.list });
-  const { data: logs = [] } = useQuery({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: HabitRepository.list });
+  const { data: logs = [] } = useQuery<DailyLog[]>({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
 
   const weekData = useMemo(() => {
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -71,7 +81,7 @@ export default function Statistics() {
   }), [logs, habits]);
 
   const categoryData = useMemo(() => {
-    const counts = {};
+    const counts: Partial<Record<HabitCategory | 'other', number>> = {};
     habits.forEach(h => { const c = h.category || 'other'; counts[c] = (counts[c] || 0) + 1; });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [habits]);

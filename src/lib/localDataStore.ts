@@ -14,10 +14,11 @@ type EntityQuery<T> = Partial<T>;
 type EntityStore<T extends { id: string }> = {
   list: (sort?: SortValue<T>, limit?: number) => Promise<T[]>;
   filter: (query: EntityQuery<T>, sort?: SortValue<T>, limit?: number) => Promise<T[]>;
-  create: (data: EntityInput<T>) => Promise<T>;
+  create: (data: any) => Promise<T>;
   update: (id: string, data: Partial<EntityInput<T>>) => Promise<T>;
   delete: (id: string) => Promise<{ id: string }>;
 };
+
 
 const delay = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 

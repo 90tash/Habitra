@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 
@@ -6,14 +5,23 @@ import { motion } from 'framer-motion';
  * Reusable loading skeleton & spinner components.
  */
 
-export function Spinner({ size = 'md', className = '' }) {
+interface SpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
   const sizes = { sm: 'h-4 w-4 border-2', md: 'h-8 w-8 border-3', lg: 'h-12 w-12 border-4' };
   return (
     <div className={`rounded-full border-primary/20 border-t-primary animate-spin ${sizes[size]} ${className}`} />
   );
 }
 
-export function SkeletonCard({ lines = 2 }) {
+interface SkeletonCardProps {
+  lines?: number;
+}
+
+export function SkeletonCard({ lines = 2 }: SkeletonCardProps) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="rounded-2xl p-4 card-shadow overflow-hidden"
@@ -31,7 +39,11 @@ export function SkeletonCard({ lines = 2 }) {
   );
 }
 
-export function PageLoader({ label = 'Loading...' }) {
+interface PageLoaderProps {
+  label?: string;
+}
+
+export function PageLoader({ label = 'Loading...' }: PageLoaderProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
       <Spinner size="md" />
@@ -40,7 +52,11 @@ export function PageLoader({ label = 'Loading...' }) {
   );
 }
 
-export default function LoadingState({ count = 3 }) {
+interface LoadingStateProps {
+  count?: number;
+}
+
+export default function LoadingState({ count = 3 }: LoadingStateProps) {
   return (
     <div className="space-y-3">
       {Array.from({ length: count }, (_, i) => (

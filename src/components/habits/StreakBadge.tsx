@@ -1,8 +1,14 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function StreakBadge({ streak, label = 'Current Streak', accent = false }) {
+interface StreakBadgeProps {
+  streak: number;
+  label?: string;
+  accent?: boolean;
+}
+
+export default function StreakBadge({ streak, label = 'Current Streak', accent = false }: StreakBadgeProps) {
+
   const hasStreak = streak > 0;
 
   return (

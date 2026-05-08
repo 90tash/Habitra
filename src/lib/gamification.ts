@@ -1,9 +1,25 @@
-// @ts-nocheck
+import { Habit, DailyLog } from './types';
+
 /**
  * Gamification Engine — XP, Levels, Badges, Achievements
  */
 
-export const LEVELS = [
+export interface Level {
+  level: number;
+  title: string;
+  xpRequired: number;
+  icon: string;
+}
+
+export interface Badge {
+  id: string;
+  title: string;
+  icon: string;
+  desc: string;
+  xp: number;
+}
+
+export const LEVELS: Level[] = [
   { level: 1, title: 'Seedling',    xpRequired: 0,    icon: '🌱' },
   { level: 2, title: 'Sprout',      xpRequired: 100,  icon: '🌿' },
   { level: 3, title: 'Grower',      xpRequired: 250,  icon: '🪴' },
@@ -16,7 +32,7 @@ export const LEVELS = [
   { level: 10,title: 'Transcendent',xpRequired: 9000, icon: '🔮' },
 ];
 
-export const BADGES = [
+export const BADGES: Badge[] = [
   { id: 'first_habit',    title: 'First Step',      icon: '👟', desc: 'Complete your first habit',          xp: 25  },
   { id: 'streak_3',       title: 'On Fire',         icon: '🔥', desc: '3-day streak on any habit',          xp: 50  },
   { id: 'streak_7',       title: 'Week Warrior',    icon: '⚔️', desc: '7-day streak on any habit',          xp: 100 },
@@ -31,7 +47,7 @@ export const BADGES = [
   { id: 'centurion',      title: 'Centurion',       icon: '💯', desc: '100 total habit completions',        xp: 250 },
 ];
 
-export function getLevelForXP(xp) {
+export function getLevelForXP(xp: number): Level {
   let current = LEVELS[0];
   for (const lvl of LEVELS) {
     if (xp >= lvl.xpRequired) current = lvl;
@@ -40,14 +56,14 @@ export function getLevelForXP(xp) {
   return current;
 }
 
-export function getNextLevel(xp) {
+export function getNextLevel(xp: number): Level | null {
   for (let i = 0; i < LEVELS.length; i++) {
     if (xp < LEVELS[i].xpRequired) return LEVELS[i];
   }
   return null; // max level
 }
 
-export function getLevelProgress(xp) {
+export function getLevelProgress(xp: number): number {
   const current = getLevelForXP(xp);
   const next = getNextLevel(xp);
   if (!next) return 100;
@@ -56,14 +72,14 @@ export function getLevelProgress(xp) {
   return Math.round((earned / range) * 100);
 }
 
-export function calcXPForCompletion(habit, isStreak = false) {
+export function calcXPForCompletion(habit: Habit, isStreak = false): number {
   let xp = 10; // base
   if (isStreak) xp += Math.min(habit.current_streak || 0, 20); // streak bonus, cap 20
   return xp;
 }
 
 // Compute total XP from all logs
-export function computeTotalXP(logs, habits) {
+export function computeTotalXP(logs: DailyLog[], habits: Habit[]): number {
   let xp = 0;
   const completedLogs = logs.filter(l => l.is_completed);
   completedLogs.forEach(log => {
@@ -74,8 +90,8 @@ export function computeTotalXP(logs, habits) {
 }
 
 // Evaluate which badges are unlocked
-export function evaluateBadges(habits, logs) {
-  const unlocked = new Set();
+export function evaluateBadges(habits: Habit[], logs: DailyLog[]): Badge[] {
+  const unlocked = new Set<string>();
   const totalCompleted = logs.filter(l => l.is_completed).length;
 
   if (totalCompleted >= 1) unlocked.add('first_habit');
@@ -89,7 +105,7 @@ export function evaluateBadges(habits, logs) {
   if (maxStreak >= 30) unlocked.add('streak_30');
 
   // Perfect day: check if any single date has all habits completed
-  const dateMap = {};
+  const dateMap: Record<string, { total: number; completed: number }> = {};
   logs.forEach(l => {
     if (!dateMap[l.date]) dateMap[l.date] = { total: 0, completed: 0 };
     dateMap[l.date].total++;
@@ -103,7 +119,7 @@ export function evaluateBadges(habits, logs) {
 }
 
 // Consistency score: % of days with ≥50% completion in last 30 days
-export function calcConsistencyScore(logs, habits, days = 30) {
+export function calcConsistencyScore(logs: DailyLog[], habits: Habit[], days = 30): number {
   const habitCount = habits.filter(h => h.is_active).length || 1;
   let activeDays = 0;
   for (let i = 0; i < days; i++) {
@@ -117,15 +133,20 @@ export function calcConsistencyScore(logs, habits, days = 30) {
   return Math.round((activeDays / days) * 100);
 }
 
+export interface Insight {
+  icon: string;
+  text: string;
+}
+
 // Smart insights
-export function generateInsights(habits, logs) {
-  const insights = [];
+export function generateInsights(habits: Habit[], logs: DailyLog[]): Insight[] {
+  const insights: Insight[] = [];
   if (logs.length === 0) return [{ icon: '👋', text: 'Start tracking habits to unlock insights.' }];
 
   const habitCount = habits.filter(h => h.is_active).length || 1;
   const last7 = logs.filter(l => {
     const d = new Date(l.date);
-    return (new Date() - d) / 86400000 <= 7;
+    return (new Date().getTime() - d.getTime()) / 86400000 <= 7;
   });
   const rate7 = last7.length ? Math.round((last7.filter(l => l.is_completed).length / (habitCount * 7)) * 100) : 0;
 
@@ -133,8 +154,8 @@ export function generateInsights(habits, logs) {
   else if (rate7 >= 50) insights.push({ icon: '⚡', text: `Solid week — ${rate7}% completion. Keep pushing!` });
   else if (rate7 < 30) insights.push({ icon: '💙', text: `Tough week with ${rate7}% completion. Progress, not perfection.` });
 
-  const bestHabit = habits.reduce((best, h) => (h.current_streak || 0) > (best?.current_streak || 0) ? h : best, null);
-  if (bestHabit?.current_streak > 1) {
+  const bestHabit = habits.reduce((best: Habit | null, h: Habit) => (h.current_streak || 0) > (best?.current_streak || 0) ? h : best, null);
+  if (bestHabit && (bestHabit.current_streak || 0) > 1) {
     insights.push({ icon: '🏅', text: `"${bestHabit.title}" is your strongest habit — ${bestHabit.current_streak} day streak!` });
   }
 

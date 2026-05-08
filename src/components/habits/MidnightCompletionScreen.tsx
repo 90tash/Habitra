@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Star } from 'lucide-react';
@@ -12,6 +11,8 @@ function launchConfetti() {
   canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999';
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
@@ -30,6 +31,7 @@ function launchConfetti() {
 
   let frame = 0;
   const draw = () => {
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pieces.forEach(p => {
       ctx.fillStyle = p.color;
@@ -53,7 +55,14 @@ function launchConfetti() {
   requestAnimationFrame(draw);
 }
 
-export default function MidnightCompletionScreen({ completedCount, totalCount, onClose }) {
+interface MidnightCompletionScreenProps {
+  completedCount: number;
+  totalCount: number;
+  onClose: () => void;
+}
+
+export default function MidnightCompletionScreen({ completedCount, totalCount, onClose }: MidnightCompletionScreenProps) {
+
   const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const isPerfect = percent === 100;
 

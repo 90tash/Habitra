@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_ICONS } from '@/lib/habitUtils';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,9 @@ import {
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Habit, HabitInput } from '@/lib/types';
 
-const DEFAULT_FORM = {
+const DEFAULT_FORM: HabitInput = {
   title: '',
   description: '',
   icon: HABIT_ICONS[0],
@@ -21,24 +21,43 @@ const DEFAULT_FORM = {
   frequency: 'daily',
   target_value: 1,
   unit: 'times',
-  reminder_time: '',
   is_active: true,
+  sort_order: 0,
 };
 
-export default function CreateHabitSheet({ open, onClose, onSave, editHabit }) {
-  const [form, setForm] = useState(DEFAULT_FORM);
+interface CreateHabitSheetProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (data: HabitInput) => void;
+  editHabit: Habit | null;
+}
+
+export default function CreateHabitSheet({ open, onClose, onSave, editHabit }: CreateHabitSheetProps) {
+  const [form, setForm] = useState<HabitInput>(DEFAULT_FORM);
 
   useEffect(() => {
-    setForm(editHabit ? { ...DEFAULT_FORM, ...editHabit } : DEFAULT_FORM);
+    setForm(editHabit ? { 
+      title: editHabit.title,
+      description: editHabit.description,
+      icon: editHabit.icon,
+      category: editHabit.category,
+      color: editHabit.color,
+      frequency: editHabit.frequency,
+      target_value: editHabit.target_value,
+      unit: editHabit.unit,
+      is_active: editHabit.is_active,
+      sort_order: editHabit.sort_order,
+      reminder_time: editHabit.reminder_time,
+    } : DEFAULT_FORM);
   }, [editHabit, open]);
 
-  const update = (field, value) => {
+  const update = (field: keyof HabitInput, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const payload = {
+    const payload: HabitInput = {
       ...form,
       title: form.title.trim(),
       description: form.description.trim(),
@@ -48,6 +67,7 @@ export default function CreateHabitSheet({ open, onClose, onSave, editHabit }) {
     onSave(payload);
     onClose();
   };
+
 
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>

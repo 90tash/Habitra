@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import type { LocalUser } from './types';
+import type { LocalUser, AuthError } from './types';
 import { appStore } from '@/store/appStore';
 
 type AuthContextValue = {
@@ -7,14 +7,15 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
   isLoadingPublicSettings: boolean;
-  authError: null;
-  appPublicSettings: null;
+  authError: AuthError;
+  appPublicSettings: any;
   authChecked: boolean;
   logout: () => void;
   navigateToLogin: () => void;
   checkUserAuth: () => Promise<LocalUser>;
   checkAppState: () => Promise<{ user: LocalUser }>;
 };
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 

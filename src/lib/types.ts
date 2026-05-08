@@ -33,7 +33,10 @@ export type Habit = EntityBase & {
   sort_order: number;
 };
 
-export type HabitInput = Omit<Habit, keyof EntityBase>;
+export type HabitInput = Omit<Habit, keyof EntityBase | 'current_streak' | 'best_streak'> & {
+  current_streak?: number;
+  best_streak?: number;
+};
 
 export type DailyLog = EntityBase & {
   habit_id: string;
@@ -45,10 +48,21 @@ export type DailyLog = EntityBase & {
   notes: string;
 };
 
-export type DailyLogInput = Omit<DailyLog, keyof EntityBase>;
+export type DailyLogInput = Omit<DailyLog, keyof EntityBase | 'completed_at' | 'notes'> & {
+  completed_at?: string | null;
+  notes?: string;
+};
+
+
 
 export type LocalUser = {
   id: string;
   full_name: string;
   email: string;
 };
+
+export type AuthError = {
+  type: 'user_not_registered' | 'auth_required' | 'server_error';
+  message?: string;
+} | null;
+

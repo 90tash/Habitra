@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +5,8 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOf
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HabitRepository, LogRepository } from '@/lib/repository';
+
+import { Habit, DailyLog } from '@/lib/types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -20,8 +21,8 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const { data: habits = [] } = useQuery({ queryKey: ['habits'], queryFn: HabitRepository.list });
-  const { data: logs = [] } = useQuery({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: HabitRepository.list });
+  const { data: logs = [] } = useQuery<DailyLog[]>({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
@@ -30,7 +31,7 @@ export default function Calendar() {
   }, [currentMonth]);
 
   const dateCompletionMap = useMemo(() => {
-    const map = {};
+    const map: Record<string, { total: number; completed: number }> = {};
     logs.forEach(log => {
       if (!map[log.date]) map[log.date] = { total: 0, completed: 0 };
       map[log.date].total++;
@@ -43,7 +44,7 @@ export default function Calendar() {
   const selectedDayLogs = logs.filter(l => l.date === selectedDateStr);
   const selectedDayHabits = habits.map(habit => ({ ...habit, log: selectedDayLogs.find(l => l.habit_id === habit.id) }));
 
-  const getIntensity = (date) => {
+  const getIntensity = (date: Date) => {
     const data = dateCompletionMap[format(date, 'yyyy-MM-dd')];
     if (!data || data.total === 0) return 0;
     return Math.ceil((data.completed / data.total) * 4);

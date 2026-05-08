@@ -1,9 +1,14 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 import { generateInsights } from '@/lib/gamification';
+import { Habit, DailyLog } from '@/lib/types';
 
-export default function InsightCard({ habits, logs }) {
+interface InsightCardProps {
+  habits: Habit[];
+  logs: DailyLog[];
+}
+
+export default function InsightCard({ habits, logs }: InsightCardProps) {
   const insights = generateInsights(habits, logs);
 
   return (

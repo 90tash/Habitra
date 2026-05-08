@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Onboarding state management.
  * Tracks whether the user has completed onboarding and which step they're on.

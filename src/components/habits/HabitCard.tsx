@@ -1,12 +1,21 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Minus, Plus, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProgressRing from './ProgressRing';
 import { getProgressPercent } from '@/lib/habitUtils';
+import type { Habit, DailyLog } from '@/lib/types';
 
-export default function HabitCard({ habit, log, onIncrement, onDecrement, onComplete }) {
+interface HabitCardProps {
+  habit: Habit;
+  log?: DailyLog;
+  onIncrement: (habit: Habit, log?: DailyLog) => void;
+  onDecrement: (habit: Habit, log?: DailyLog) => void;
+  onComplete: (habit: Habit, log?: DailyLog) => void;
+}
+
+export default function HabitCard({ habit, log, onIncrement, onDecrement, onComplete }: HabitCardProps) {
+
   const currentValue = log?.current_value || 0;
   const target = habit.target_value || 1;
   const progress = getProgressPercent(currentValue, target);

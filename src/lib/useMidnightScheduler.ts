@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * useMidnightScheduler
  * 
@@ -24,7 +23,7 @@ export function getMidnightSession() {
   }
 }
 
-export function saveMidnightSession(data) {
+export function saveMidnightSession(data: any) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     ...data,
     date: new Date().toDateString(),
@@ -41,9 +40,14 @@ export function isMidnightSessionDismissedToday() {
   return session?.date === new Date().toDateString() && session?.dismissed === true;
 }
 
-export function useMidnightScheduler({ onTrigger, enabled = true }) {
-  const snoozeTimeoutRef = useRef(null);
-  const intervalRef = useRef(null);
+interface UseMidnightSchedulerProps {
+  onTrigger: () => void;
+  enabled?: boolean;
+}
+
+export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightSchedulerProps) {
+  const snoozeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const firedRef = useRef(false);
 
   const trigger = useCallback(() => {
@@ -95,7 +99,7 @@ export function useMidnightScheduler({ onTrigger, enabled = true }) {
     intervalRef.current = setInterval(checkTime, 30 * 1000); // check every 30 seconds
 
     return () => {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       if (snoozeTimeoutRef.current) clearTimeout(snoozeTimeoutRef.current);
     };
   }, [enabled, trigger]);

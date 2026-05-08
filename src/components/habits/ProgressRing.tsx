@@ -1,6 +1,14 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
+
+interface ProgressRingProps {
+  progress?: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+  bgColor?: string;
+  children?: React.ReactNode;
+}
 
 export default function ProgressRing({ 
   progress = 0, 
@@ -9,7 +17,8 @@ export default function ProgressRing({
   color = 'hsl(var(--primary))',
   bgColor = 'hsl(var(--muted))',
   children 
-}) {
+}: ProgressRingProps) {
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(progress, 100) / 100) * circumference;

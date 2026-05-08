@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, BarChart3, CalendarDays, Timer, Settings } from 'lucide-react';

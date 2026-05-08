@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -11,12 +10,14 @@ const SOUNDS = [
   { id: 'cafe',   label: 'Café',       emoji: '☕', freq: 600,  type: 'pink'  },
 ];
 
-function createNoiseNode(audioCtx, type) {
+type NoiseType = 'white' | 'pink' | 'brown';
+
+function createNoiseNode(audioCtx: AudioContext, type: NoiseType) {
   const bufferSize = 4096;
   const node = audioCtx.createScriptProcessor(bufferSize, 1, 1);
   let lastOut = 0;
 
-  node.onaudioprocess = (e) => {
+  node.onaudioprocess = (e: AudioProcessingEvent) => {
     const output = e.outputBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
@@ -35,11 +36,11 @@ function createNoiseNode(audioCtx, type) {
 }
 
 export default function WhiteNoisePlayer() {
-  const [active, setActive] = useState(null);
+  const [active, setActive] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.3);
-  const audioCtxRef = useRef(null);
-  const gainRef = useRef(null);
-  const noiseRef = useRef(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const noiseRef = useRef<ScriptProcessorNode | null>(null);
 
   const stop = () => {
     if (noiseRef.current) { noiseRef.current.disconnect(); noiseRef.current = null; }
@@ -47,22 +48,23 @@ export default function WhiteNoisePlayer() {
     setActive(null);
   };
 
-  const play = (sound) => {
+  const play = (sound: typeof SOUNDS[0]) => {
     stop();
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
 
     if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
-      audioCtxRef.current = new AudioContext();
+      audioCtxRef.current = new AudioContextClass();
     }
     const ctx = audioCtxRef.current;
+    if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
 
     const gain = ctx.createGain();
     gain.gain.value = volume;
     gain.connect(ctx.destination);
 
-    const noise = createNoiseNode(ctx, sound.type);
+    const noise = createNoiseNode(ctx, sound.type as NoiseType);
     noise.connect(gain);
 
     gainRef.current = gain;
@@ -70,7 +72,8 @@ export default function WhiteNoisePlayer() {
     setActive(sound.id);
   };
 
-  const toggle = (sound) => {
+
+  const toggle = (sound: typeof SOUNDS[0]) => {
     if (active === sound.id) stop();
     else play(sound);
   };

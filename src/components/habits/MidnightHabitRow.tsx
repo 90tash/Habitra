@@ -1,9 +1,16 @@
-// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Minus, Plus } from 'lucide-react';
+import type { Habit, DailyLog } from '@/lib/types';
 
-export default function MidnightHabitRow({ habit, log, index, onChange }) {
+interface MidnightHabitRowProps {
+  habit: Habit;
+  log?: DailyLog;
+  index: number;
+  onChange: (habit: Habit, log: DailyLog | undefined, update: { value: number; completed: boolean; skipped: boolean }) => void;
+}
+
+export default function MidnightHabitRow({ habit, log, index, onChange }: MidnightHabitRowProps) {
   const target = habit.target_value || 1;
   const initialValue = log?.current_value || 0;
   const [value, setValue] = useState(initialValue);
@@ -14,9 +21,10 @@ export default function MidnightHabitRow({ habit, log, index, onChange }) {
     onChange(habit, log, { value, completed, skipped: false });
   }, [completed, habit, log, onChange, value]);
 
-  const updateValue = (nextValue) => {
+  const updateValue = (nextValue: number) => {
     setValue(Math.max(0, Math.min(target, nextValue)));
   };
+
 
   return (
     <motion.div

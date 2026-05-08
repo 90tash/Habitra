@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
@@ -16,6 +15,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import LoadingState from '@/components/ui/LoadingState';
 import { getTodayStr, getGreeting } from '@/lib/habitUtils';
 import { HabitRepository, LogRepository } from '@/lib/repository';
+import type { Habit, DailyLog, DailyLogInput } from '@/lib/types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -32,15 +32,15 @@ export default function Home() {
   const todayStr = getTodayStr();
 
   // Using Repository pattern for all data access
-  const { data: habits = [], isLoading: habitsLoading, isError: habitsError } = useQuery({
+  const { data: habits = [], isLoading: habitsLoading, isError: habitsError } = useQuery<Habit[]>({
     queryKey: ['habits'],
     queryFn: HabitRepository.listActive,
   });
-  const { data: todayLogs = [] } = useQuery({
+  const { data: todayLogs = [] } = useQuery<DailyLog[]>({
     queryKey: ['dailyLogs', todayStr],
     queryFn: LogRepository.forToday,
   });
-  const { data: allLogs = [] } = useQuery({
+  const { data: allLogs = [] } = useQuery<DailyLog[]>({
     queryKey: ['allLogs'],
     queryFn: () => LogRepository.recent(500),
   });
@@ -55,16 +55,16 @@ export default function Home() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['habits'] }),
   });
   const createLogMutation = useMutation({
-    mutationFn: (data) => LogRepository.upsert(data.habit_id, data.date, data.current_value, data.target_value, data.is_completed),
+    mutationFn: (data: DailyLogInput) => LogRepository.upsert(data.habit_id, data.date, data.current_value, data.target_value, data.is_completed),
     onSuccess: invalidate,
   });
   const updateLogMutation = useMutation({
-    mutationFn: ({ id, data }) => LogRepository.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<DailyLog> }) => LogRepository.update(id, data),
     onSuccess: invalidate,
   });
-  const getLogForHabit = (habitId) => todayLogs.find(l => l.habit_id === habitId);
+  const getLogForHabit = (habitId: string) => todayLogs.find(l => l.habit_id === habitId);
 
-  const handleIncrement = async (habit, log) => {
+  const handleIncrement = async (habit: Habit, log?: DailyLog) => {
     const newVal = (log?.current_value || 0) + 1;
     const isComplete = newVal >= habit.target_value;
     if (log) {
@@ -75,12 +75,12 @@ export default function Home() {
     if (isComplete) await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
   };
 
-  const handleDecrement = async (habit, log) => {
+  const handleDecrement = async (habit: Habit, log?: DailyLog) => {
     if (!log || log.current_value <= 0) return;
     await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: log.current_value - 1, is_completed: false, completed_at: null } });
   };
 
-  const handleComplete = async (habit, log) => {
+  const handleComplete = async (habit: Habit, log?: DailyLog) => {
     if (log) {
       await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: habit.target_value, is_completed: true, completed_at: new Date().toISOString() } });
     } else {
@@ -176,12 +176,12 @@ export default function Home() {
         </motion.div>
       )}
 
-      <CreateHabitSheet open={showCreate} onClose={() => setShowCreate(false)}
+      <CreateHabitSheet open={showCreate} onClose={() => setShowCreate(false)} editHabit={null}
         onSave={(data) => createHabitMutation.mutate(data)} />
 
 
-      <MidnightPopup habits={habits} logs={todayLogs} onMarkComplete={handleComplete}
-        onSaveProgress={async (habit, log, value, completed) => {
+      <MidnightPopup habits={habits} logs={todayLogs}
+        onSaveProgress={async (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean) => {
           if (log) {
             await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: value, is_completed: completed, completed_at: completed ? new Date().toISOString() : null } });
           } else {

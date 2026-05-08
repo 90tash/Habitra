@@ -1,21 +1,32 @@
-// @ts-nocheck
 import React from 'react';
 import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { DailyLog } from '@/lib/types';
 
-export default function HeatmapCalendar({ logs = [], weeks = 12 }) {
+interface HeatmapCalendarProps {
+  logs?: DailyLog[];
+  weeks?: number;
+}
+
+interface DateStats {
+  total: number;
+  completed: number;
+}
+
+export default function HeatmapCalendar({ logs = [], weeks = 12 }: HeatmapCalendarProps) {
   const today = new Date();
   const totalDays = weeks * 7;
   const startDate = startOfWeek(subDays(today, totalDays - 1), { weekStartsOn: 1 });
 
-  const dateMap = {};
+  const dateMap: Record<string, DateStats> = {};
   logs.forEach(log => {
     const d = log.date;
     if (!dateMap[d]) dateMap[d] = { total: 0, completed: 0 };
     dateMap[d].total++;
     if (log.is_completed) dateMap[d].completed++;
   });
+
 
   const cells = [];
   for (let i = 0; i < totalDays; i++) {
@@ -33,7 +44,7 @@ export default function HeatmapCalendar({ logs = [], weeks = 12 }) {
 
   const dayLabels = ['M', '', 'W', '', 'F', '', ''];
 
-  const intensityStyle = (intensity, isFuture) => {
+  const intensityStyle = (intensity: number, isFuture: boolean) => {
     if (isFuture) return { background: 'transparent' };
     if (intensity === 0) return { background: 'hsl(var(--muted)/0.6)' };
     const opacities = ['', '0.25', '0.45', '0.65', '0.9'];

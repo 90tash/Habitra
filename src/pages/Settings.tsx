@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -12,6 +11,7 @@ import XPBar from '@/components/gamification/XPBar';
 import { computeTotalXP, evaluateBadges, getLevelForXP } from '@/lib/gamification';
 import { useAuth } from '@/lib/AuthContext';
 import { HabitRepository, LogRepository } from '@/lib/repository';
+import { Habit, DailyLog } from '@/lib/types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -22,27 +22,27 @@ const itemVariants = {
   animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 340, damping: 28 } },
 };
 
-const THEME_ICONS = { light: Sun, dark: Moon, amoled: Zap };
-const THEME_LABELS = { light: 'Light', dark: 'Dark', amoled: 'AMOLED' };
+const THEME_ICONS: Record<string, any> = { light: Sun, dark: Moon, amoled: Zap };
+const THEME_LABELS: Record<string, string> = { light: 'Light', dark: 'Dark', amoled: 'AMOLED' };
 
 export default function Settings() {
   const { theme, setTheme, accentIdx, setAccent } = useTheme();
   const { logout } = useAuth();
   const queryClient = useQueryClient();
-  const [editHabit, setEditHabit] = useState(null);
+  const [editHabit, setEditHabit] = useState<Habit | null>(null);
 
-  const { data: habits = [] } = useQuery({ queryKey: ['habits'], queryFn: HabitRepository.list });
-  const { data: logs = [] } = useQuery({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
+  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: HabitRepository.list });
+  const { data: logs = [] } = useQuery<DailyLog[]>({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
 
   const deleteHabitMutation = useMutation({
-    mutationFn: HabitRepository.delete,
+    mutationFn: (id: string) => HabitRepository.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habits'] });
       queryClient.invalidateQueries({ queryKey: ['allLogs'] });
     },
   });
   const updateHabitMutation = useMutation({
-    mutationFn: ({ id, data }) => HabitRepository.update(id, data),
+    mutationFn: ({ id, data }: { id: string, data: Partial<Habit> }) => HabitRepository.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); setEditHabit(null); },
   });
 

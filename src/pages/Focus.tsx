@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, SkipForward, Settings2 } from 'lucide-react';
@@ -6,9 +5,15 @@ import { Button } from '@/components/ui/button';
 import ProgressRing from '@/components/habits/ProgressRing';
 import WhiteNoisePlayer from '@/components/focus/WhiteNoisePlayer';
 
-const DEFAULT_DURATIONS = { focus: 25, short: 5, long: 15 };
+type Mode = {
+  key: 'focus' | 'short' | 'long';
+  label: string;
+  color: string;
+};
 
-const MODES = [
+const DEFAULT_DURATIONS: Record<Mode['key'], number> = { focus: 25, short: 5, long: 15 };
+
+const MODES: Mode[] = [
   { key: 'focus', label: 'Focus',       color: 'hsl(var(--primary))' },
   { key: 'short', label: 'Short Break', color: 'hsl(var(--accent))'  },
   { key: 'long',  label: 'Long Break',  color: 'hsl(var(--chart-3))' },
@@ -32,7 +37,7 @@ const itemVariants = {
 };
 
 export default function Focus() {
-  const [mode, setMode] = useState(MODES[0]);
+  const [mode, setMode] = useState<Mode>(MODES[0]);
   const [durations, setDurations] = useState(DEFAULT_DURATIONS);
   const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATIONS.focus * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -40,24 +45,24 @@ export default function Focus() {
   const [totalFocusMin, setTotalFocusMin] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [tip] = useState(() => SESSION_TIPS[Math.floor(Math.random() * SESSION_TIPS.length)]);
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentDuration = durations[mode.key] * 60;
   const progress = ((currentDuration - timeLeft) / currentDuration) * 100;
-  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   useEffect(() => {
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     if (isRunning && timeLeft > 0) {
       intervalRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000);
     } else if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
       if (mode.key === 'focus') { setSessionsToday(s => s + 1); setTotalFocusMin(m => m + durations.focus); }
     }
-    return () => clearInterval(intervalRef.current);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isRunning, timeLeft, mode, durations]);
 
-  const switchMode = (m) => { setIsRunning(false); setMode(m); setTimeLeft(durations[m.key] * 60); };
+  const switchMode = (m: Mode) => { setIsRunning(false); setMode(m); setTimeLeft(durations[m.key] * 60); };
   const reset = () => { setIsRunning(false); setTimeLeft(durations[mode.key] * 60); };
   const skip = () => { const idx = MODES.findIndex(m => m.key === mode.key); switchMode(MODES[(idx + 1) % MODES.length]); };
 
@@ -90,10 +95,10 @@ export default function Focus() {
               ].map(({ key, label, min, max }) => (
                 <div key={key} className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground w-24">{label}</span>
-                  <input type="range" min={min} max={max} value={durations[key]}
+                  <input type="range" min={min} max={max} value={durations[key as Mode['key']]}
                     onChange={e => { const v = Number(e.target.value); setDurations(d => ({ ...d, [key]: v })); if (mode.key === key) setTimeLeft(v * 60); }}
                     className="flex-1 accent-primary h-1" />
-                  <span className="text-xs font-semibold w-10 text-right">{durations[key]}m</span>
+                  <span className="text-xs font-semibold w-10 text-right">{durations[key as Mode['key']]}m</span>
                 </div>
               ))}
             </div>

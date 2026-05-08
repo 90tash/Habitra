@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 
 export const THEMES = ['light', 'dark', 'amoled'];
@@ -12,14 +11,14 @@ export const ACCENT_COLORS = [
   { name: 'Orange',  primary: '24 90% 50%',  dark: '24 90% 56%' },
 ];
 
-function applyTheme(theme) {
+function applyTheme(theme: string) {
   const root = document.documentElement;
   root.classList.remove('dark', 'amoled');
   if (theme === 'dark') root.classList.add('dark');
   if (theme === 'amoled') root.classList.add('dark', 'amoled');
 }
 
-function applyAccent(colorIdx) {
+function applyAccent(colorIdx: number) {
   const color = ACCENT_COLORS[colorIdx] || ACCENT_COLORS[0];
   const root = document.documentElement;
   root.style.setProperty('--primary', color.primary);
@@ -32,10 +31,10 @@ function applyAccent(colorIdx) {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState(() =>
+  const [theme, setThemeState] = useState<string>(() =>
     typeof window !== 'undefined' ? (localStorage.getItem('hp-theme') || 'dark') : 'dark'
   );
-  const [accentIdx, setAccentIdxState] = useState(() =>
+  const [accentIdx, setAccentIdxState] = useState<number>(() =>
     typeof window !== 'undefined' ? Number(localStorage.getItem('hp-accent') || 0) : 0
   );
 
@@ -45,12 +44,12 @@ export function useTheme() {
     localStorage.setItem('hp-theme', theme);
   }, [theme, accentIdx]);
 
-  const setTheme = (t) => { setThemeState(t); };
+  const setTheme = (t: string) => { setThemeState(t); };
   const toggleTheme = () => setThemeState(t => {
     const idx = THEMES.indexOf(t);
     return THEMES[(idx + 1) % THEMES.length];
   });
-  const setAccent = (idx) => { setAccentIdxState(idx); localStorage.setItem('hp-accent', idx); };
+  const setAccent = (idx: number) => { setAccentIdxState(idx); localStorage.setItem('hp-accent', idx.toString()); };
 
   return { theme, setTheme, toggleTheme, accentIdx, setAccent, ACCENT_COLORS, THEMES };
 }

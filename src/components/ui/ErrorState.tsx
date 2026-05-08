@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -12,7 +11,19 @@ import { Button } from '@/components/ui/button';
  *   onRetry     - retry callback
  *   compact     - smaller variant
  */
-export default function ErrorState({ title = 'Something went wrong', description, onRetry, compact = false }) {
+interface ErrorStateProps {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+  compact?: boolean;
+}
+
+export default function ErrorState({ 
+  title = 'Something went wrong', 
+  description, 
+  onRetry, 
+  compact = false 
+}: ErrorStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}

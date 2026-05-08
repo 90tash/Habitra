@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, CheckCheck, Bell, X, Clock } from 'lucide-react';
@@ -12,18 +11,35 @@ import {
   getMidnightSession,
   isMidnightSessionDismissedToday,
 } from '@/lib/useMidnightScheduler';
+import type { Habit, DailyLog } from '@/lib/types';
 
 const MAX_SNOOZES = 3;
 const SNOOZE_MINUTES = 10;
 
-export default function MidnightPopup({ habits, logs, onSaveProgress }) {
+interface MidnightPopupProps {
+  habits: Habit[];
+  logs: DailyLog[];
+  onSaveProgress: (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean) => Promise<void>;
+}
+
+interface HabitChange {
+  habit: Habit;
+  log?: DailyLog;
+  update: {
+    value: number;
+    completed: boolean;
+    skipped: boolean;
+  };
+}
+
+export default function MidnightPopup({ habits, logs, onSaveProgress }: MidnightPopupProps) {
   const [visible, setVisible] = useState(false);
-  const [phase, setPhase] = useState('habits'); // 'habits' | 'result'
+  const [phase, setPhase] = useState<'habits' | 'result'>('habits');
   const [snoozeCount, setSnoozeCount] = useState(0);
-  const [snoozeCountdown, setSnoozeCountdown] = useState(null);
-  const [pendingChanges, setPendingChanges] = useState({});
+  const [snoozeCountdown, setSnoozeCountdown] = useState<number | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, HabitChange>>({});
   const [saving, setSaving] = useState(false);
-  const countdownRef = useRef(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const incompleteHabits = habits.filter(h => {
     const log = logs.find(l => l.habit_id === h.id);
@@ -44,11 +60,11 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }) {
     if (session?.date === today && session?.triggered && !session?.dismissed) {
       setTimeout(open, 1200);
     }
-  }, []);  
+  }, [open]);  
 
   const { snooze } = useMidnightScheduler({ onTrigger: open, enabled: true });
 
-  const handleHabitChange = useCallback((habit, log, update) => {
+  const handleHabitChange = useCallback((habit: Habit, log: DailyLog | undefined, update: HabitChange['update']) => {
     setPendingChanges(prev => ({ ...prev, [habit.id]: { habit, log, update } }));
   }, []);
 
@@ -68,7 +84,7 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }) {
   };
 
   const handleCompleteAll = () => {
-    const allChanges = {};
+    const allChanges: Record<string, HabitChange> = {};
     incompleteHabits.forEach(habit => {
       const log = logs.find(l => l.habit_id === habit.id);
       allChanges[habit.id] = { habit, log, update: { value: habit.target_value, completed: true, skipped: false } };
@@ -90,12 +106,13 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }) {
       remaining--;
       setSnoozeCountdown(remaining);
       if (remaining <= 0) {
-        clearInterval(countdownRef.current);
+        if (countdownRef.current) clearInterval(countdownRef.current);
         setSnoozeCountdown(null);
       }
     }, 1000);
     snooze(SNOOZE_MINUTES);
   };
+
 
   const handleDismiss = () => {
     saveMidnightSession({ triggered: true, dismissed: true });
@@ -123,7 +140,7 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }) {
 
   const canSnooze = snoozeCount < MAX_SNOOZES;
 
-  const formatCountdown = (s) => {
+  const formatCountdown = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}:${String(sec).padStart(2, '0')}`;

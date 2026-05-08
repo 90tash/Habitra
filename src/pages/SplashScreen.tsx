@@ -1,8 +1,11 @@
-// @ts-nocheck
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
-export default function SplashScreen({ onDone }) {
+interface SplashScreenProps {
+  onDone: () => void;
+}
+
+export default function SplashScreen({ onDone }: SplashScreenProps) {
   useEffect(() => {
     const timer = setTimeout(onDone, 2200);
     return () => clearTimeout(timer);

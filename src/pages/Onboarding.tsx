@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Sparkles } from 'lucide-react';
@@ -6,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { ONBOARDING_STEPS, markOnboardingComplete } from '@/lib/onboarding';
 
 const slideVariants = {
-  enter: (dir) => ({ opacity: 0, x: dir > 0 ? 60 : -60, scale: 0.96 }),
+  enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 60 : -60, scale: 0.96 }),
   center: { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 320, damping: 28 } },
-  exit: (dir) => ({ opacity: 0, x: dir > 0 ? -60 : 60, scale: 0.96, transition: { duration: 0.2 } }),
+  exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -60 : 60, scale: 0.96, transition: { duration: 0.2 } }),
 };
 
 const BG_GRADIENTS = [
@@ -18,7 +17,11 @@ const BG_GRADIENTS = [
   'from-emerald-600/20 via-teal-600/10 to-transparent',
 ];
 
-export default function Onboarding({ onComplete }) {
+interface OnboardingProps {
+  onComplete: () => void;
+}
+
+export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
 

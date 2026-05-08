@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,24 @@ import { Button } from '@/components/ui/button';
  *   action     - { label, onClick } for CTA button
  *   compact    - smaller variant
  */
-export default function EmptyState({ emoji = '🌱', title, description, action, compact = false }) {
+interface EmptyStateProps {
+  emoji?: string;
+  title?: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  compact?: boolean;
+}
+
+export default function EmptyState({ 
+  emoji = '🌱', 
+  title, 
+  description, 
+  action, 
+  compact = false 
+}: EmptyStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}

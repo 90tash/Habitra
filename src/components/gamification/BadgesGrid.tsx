@@ -1,10 +1,13 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BADGES } from '@/lib/gamification';
+import { BADGES, Badge } from '@/lib/gamification';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-export default function BadgesGrid({ unlockedBadges = [] }) {
+interface BadgesGridProps {
+  unlockedBadges?: Badge[];
+}
+
+export default function BadgesGrid({ unlockedBadges = [] }: BadgesGridProps) {
   const unlockedIds = new Set(unlockedBadges.map(b => b.id));
 
   return (
