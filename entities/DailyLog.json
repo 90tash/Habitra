@@ -1,0 +1,41 @@
+{
+  "name": "DailyLog",
+  "type": "object",
+  "properties": {
+    "habit_id": {
+      "type": "string",
+      "description": "Reference to the habit"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the log entry"
+    },
+    "current_value": {
+      "type": "number",
+      "default": 0,
+      "description": "Current progress value"
+    },
+    "target_value": {
+      "type": "number",
+      "description": "Target value for this day"
+    },
+    "is_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the habit was completed"
+    },
+    "completed_at": {
+      "type": "string",
+      "description": "Timestamp when completed"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes for the day"
+    }
+  },
+  "required": [
+    "habit_id",
+    "date"
+  ]
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Primary Meta -->
+    <title>Habitra - Build Better Habits</title>
+    <meta name="description" content="Habitra is a premium habit tracker with streaks, gamification, focus mode, and smart insights. Build the life you want, one habit at a time." />
+    <meta name="keywords" content="habit tracker, daily habits, streak tracker, productivity, focus, mindfulness" />
+    <meta name="author" content="Habitra" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Habitra - Build Better Habits" />
+    <meta property="og:description" content="Premium habit tracker with streaks, gamification & focus mode." />
+
+    <!-- Mobile / PWA -->
+    <meta name="theme-color" content="#0f1119" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Habitra" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Prevent text size adjustment on orientation change -->
+    <meta name="format-detection" content="telephone=no" />
+  </head>
+  <body>
+    <script>
+      // Apply saved theme immediately to prevent FOUC
+      (function() {
+        var theme = localStorage.getItem('hp-theme') || 'dark';
+        var root = document.documentElement;
+        if (theme === 'dark' || theme === 'amoled') root.classList.add('dark');
+        if (theme === 'amoled') root.classList.add('amoled');
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
