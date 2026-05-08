@@ -5,6 +5,10 @@ import type { DailyLog, Habit, HabitInput, LocalUser } from './types';
 export const HabitRepository = {
   listActive: () => LocalDataStore.Habit.filter({ is_active: true }, 'sort_order'),
   list: () => LocalDataStore.Habit.list('sort_order'),
+  getById: async (id: string) => {
+    const items = await LocalDataStore.Habit.list();
+    return items.find(h => h.id === id) || null;
+  },
   create: (data: HabitInput) => LocalDataStore.Habit.create(data),
   update: (id: string, data: Partial<HabitInput>) => LocalDataStore.Habit.update(id, data),
   reorder: async (ids: string[]) => {
@@ -32,6 +36,7 @@ export const HabitRepository = {
 export const LogRepository = {
   forToday: () => LocalDataStore.DailyLog.filter({ date: getTodayStr() }),
   forDate: (date: string) => LocalDataStore.DailyLog.filter({ date }),
+  forHabit: (habitId: string) => LocalDataStore.DailyLog.filter({ habit_id: habitId }),
   recent: (limit = 500) => LocalDataStore.DailyLog.list('-date', limit),
   update: (id: string, data: Partial<DailyLog>) => LocalDataStore.DailyLog.update(id, data),
   upsert: async (habitId: string, date: string, currentValue: number, targetValue: number, completed: boolean) => {

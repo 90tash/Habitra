@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Minus, Plus, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import ProgressRing from './ProgressRing';
 import { getProgressPercent } from '@/lib/habitUtils';
@@ -15,12 +16,17 @@ interface HabitCardProps {
 }
 
 export default function HabitCard({ habit, log, onIncrement, onDecrement, onComplete }: HabitCardProps) {
-
+  const navigate = useNavigate();
   const currentValue = log?.current_value || 0;
   const target = habit.target_value || 1;
   const progress = getProgressPercent(currentValue, target);
   const isCompleted = log?.is_completed || false;
   const color = habit.color || '#7C5CFC';
+
+  const handleNavigate = () => {
+    navigate(`/habit/${habit.id}`);
+  };
+
   return (
     <motion.div
       layout
@@ -29,7 +35,8 @@ export default function HabitCard({ habit, log, onIncrement, onDecrement, onComp
       exit={{ opacity: 0, y: -10, scale: 0.97 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-      className={`relative rounded-2xl overflow-hidden transition-all duration-300 card-shadow ${
+      onClick={handleNavigate}
+      className={`relative rounded-2xl overflow-hidden transition-all duration-300 card-shadow cursor-pointer ${
         isCompleted ? 'opacity-90' : ''
       }`}
       style={{
@@ -83,7 +90,7 @@ export default function HabitCard({ habit, log, onIncrement, onDecrement, onComp
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {/* Multi-step habits: Allow +/- if not completed */}
           {!isCompleted && target > 1 && (
             <>

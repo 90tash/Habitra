@@ -6,7 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
@@ -14,6 +14,7 @@ import Statistics from '@/pages/Statistics';
 import Calendar from '@/pages/Calendar';
 import Focus from '@/pages/Focus';
 import Settings from '@/pages/Settings';
+import HabitDetails from '@/pages/HabitDetails';
 import SplashScreen from '@/pages/SplashScreen';
 import Onboarding from '@/pages/Onboarding';
 import { isOnboardingComplete } from '@/lib/onboarding';
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/habit/:id" element={<HabitDetails />} />
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/focus" element={<Focus />} />
