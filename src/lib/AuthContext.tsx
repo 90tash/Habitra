@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import type { LocalUser } from './types';
+import { appStore } from '@/store/appStore';
 
 type AuthContextValue = {
   user: LocalUser;
@@ -17,15 +18,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const LOCAL_USER: LocalUser = {
-  id: 'local-user',
-  full_name: 'Local User',
-  email: 'local@habitra.app',
-};
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const localUser = appStore.getIdentity();
   const value = useMemo<AuthContextValue>(() => ({
-    user: LOCAL_USER,
+    user: localUser,
     isAuthenticated: true,
     isLoadingAuth: false,
     isLoadingPublicSettings: false,
@@ -34,9 +30,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     authChecked: true,
     logout: () => {},
     navigateToLogin: () => {},
-    checkUserAuth: async () => LOCAL_USER,
-    checkAppState: async () => ({ user: LOCAL_USER }),
-  }), []);
+    checkUserAuth: async () => localUser,
+    checkAppState: async () => ({ user: localUser }),
+  }), [localUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
