@@ -133,7 +133,7 @@
   -webkit-backdrop-filter: blur(40px);
 }
 
-/* Premium card shadow */
+/* Elevated card shadow */
 .card-shadow {
   box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04),
               0 4px 16px hsl(var(--foreground) / 0.06),

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Lock } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -16,26 +16,6 @@ import EmptyState from '@/components/ui/EmptyState';
 import LoadingState from '@/components/ui/LoadingState';
 import { getTodayStr, getGreeting } from '@/lib/habitUtils';
 import { HabitRepository, LogRepository } from '@/lib/repository';
-import { canAddHabit } from '@/lib/subscription';
-
-// Free tier limit badge shown when approaching/at limit
-function FreeLimitBanner({ habitCount, onUpgrade }) {
-  if (habitCount < 4) return null;
-  const atLimit = habitCount >= 5;
-  return (
-    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-      className={`rounded-2xl px-4 py-3 flex items-center gap-3 ${atLimit ? 'bg-destructive/10 border border-destructive/20' : 'bg-primary/8 border border-primary/15'}`}>
-      <Lock className={`h-4 w-4 shrink-0 ${atLimit ? 'text-destructive' : 'text-primary'}`} />
-      <div className="flex-1">
-        <p className="text-xs font-semibold">{atLimit ? 'Habit limit reached' : `${5 - habitCount} free slot${5 - habitCount !== 1 ? 's' : ''} left`}</p>
-        <p className="text-[10px] text-muted-foreground">Upgrade to Premium for unlimited habits</p>
-      </div>
-      <button onClick={onUpgrade} className="text-[10px] font-bold text-primary whitespace-nowrap hover:underline">
-        Upgrade →
-      </button>
-    </motion.div>
-  );
-}
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -48,7 +28,6 @@ const itemVariants = {
 
 export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const queryClient = useQueryClient();
   const todayStr = getTodayStr();
 
@@ -111,11 +90,6 @@ export default function Home() {
   };
 
   const handleAddHabit = () => {
-    // Free tier: max 5 habits
-    if (!canAddHabit(null, habits.length)) {
-      setShowPaywall(true);
-      return;
-    }
     setShowCreate(true);
   };
 
@@ -160,10 +134,6 @@ export default function Home() {
       {/* Quote */}
       <motion.div variants={itemVariants}><QuoteCard /></motion.div>
 
-      {/* Free tier limit banner */}
-      <motion.div variants={itemVariants}>
-        <FreeLimitBanner habitCount={habits.length} onUpgrade={() => setShowPaywall(true)} />
-      </motion.div>
 
       {/* Habits list */}
       <motion.div variants={itemVariants}>
@@ -209,12 +179,6 @@ export default function Home() {
       <CreateHabitSheet open={showCreate} onClose={() => setShowCreate(false)}
         onSave={(data) => createHabitMutation.mutate(data)} />
 
-      {/* Lazy-load Paywall */}
-      <AnimatePresence>
-        {showPaywall && (
-          <PaywallLazy onClose={() => setShowPaywall(false)} onUpgrade={() => setShowPaywall(false)} />
-        )}
-      </AnimatePresence>
 
       <MidnightPopup habits={habits} logs={todayLogs} onMarkComplete={handleComplete}
         onSaveProgress={async (habit, log, value, completed) => {
@@ -230,12 +194,3 @@ export default function Home() {
   );
 }
 
-// Inline lazy wrapper — avoids importing Paywall at module level
-function PaywallLazy({ onClose, onUpgrade }) {
-  const [Comp, setComp] = React.useState(null);
-  React.useEffect(() => {
-    import('@/pages/Paywall').then(m => setComp(() => m.default));
-  }, []);
-  if (!Comp) return null;
-  return <Comp onClose={onClose} onUpgrade={onUpgrade} />;
-}

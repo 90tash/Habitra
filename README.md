@@ -11,7 +11,7 @@ Habitra currently runs backend-light: habits and daily logs are persisted locall
 | Area | Responsibility |
 | --- | --- |
 | `src/App.tsx` | Application shell, onboarding/splash flow, routing, and layout mounting |
-| `src/pages/` | Home, calendar, focus, statistics, settings, onboarding, and paywall screens |
+| `src/pages/` | Home, calendar, focus, statistics, settings, and onboarding screens |
 | `src/components/` | Habit UI, gamification UI, layout, and shared interface primitives |
 | `src/lib/` | Typed models, repository/data access, local storage persistence, auth shim, utilities, and app logic |
 | `src/store/` | Lightweight persisted settings and local identity state |

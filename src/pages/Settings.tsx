@@ -5,8 +5,6 @@ import { motion } from 'framer-motion';
 import { Trash2, LogOut, Pencil, Trophy, Moon, Sun, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme, ACCENT_COLORS, THEMES } from '@/lib/useTheme';
-import { AnimatePresence } from 'framer-motion';
-import { PREMIUM_FEATURES } from '@/lib/subscription';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
 import BadgesGrid from '@/components/gamification/BadgesGrid';
@@ -32,7 +30,6 @@ export default function Settings() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
   const [editHabit, setEditHabit] = useState(null);
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const { data: habits = [] } = useQuery({ queryKey: ['habits'], queryFn: HabitRepository.list });
   const { data: logs = [] } = useQuery({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
@@ -204,40 +201,11 @@ export default function Settings() {
         </button>
       </motion.div>
 
-      {/* Premium CTA */}
-      <motion.div variants={itemVariants}
-        className="relative rounded-3xl overflow-hidden card-shadow-lg p-5 cursor-pointer"
-        onClick={() => setShowPaywall(true)}
-        style={{ background: 'linear-gradient(135deg, #7C5CFC22, #4ECDC415)', border: '1px solid #7C5CFC30', backdropFilter: 'blur(24px)' }}>
-        <div className="absolute top-0 right-0 w-32 h-32 rounded-full -translate-y-12 translate-x-12 opacity-15 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #7C5CFC, transparent)' }} />
-        <p className="text-[10px] text-primary uppercase tracking-widest font-bold mb-1.5">⭐ Premium</p>
-        <p className="text-base font-bold font-space">Unlock All Features</p>
-        <p className="text-xs text-muted-foreground mt-1">Unlimited habits, advanced analytics & more</p>
-        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-          {PREMIUM_FEATURES.slice(0, 3).map(f => (
-            <span key={f.title} className="text-[10px] bg-primary/10 text-primary rounded-full px-2.5 py-0.5 font-medium">
-              {f.icon} {f.title}
-            </span>
-          ))}
-        </div>
-      </motion.div>
-
       {editHabit && (
         <CreateHabitSheet open={!!editHabit} onClose={() => setEditHabit(null)} editHabit={editHabit}
           onSave={(data) => updateHabitMutation.mutate({ id: editHabit.id, data })} />
       )}
-
-      <AnimatePresence>
-        {showPaywall && <PaywallLazy onClose={() => setShowPaywall(false)} onUpgrade={() => setShowPaywall(false)} />}
-      </AnimatePresence>
     </motion.div>
   );
 }
 
-function PaywallLazy({ onClose, onUpgrade }) {
-  const [Comp, setComp] = React.useState(null);
-  React.useEffect(() => { import('@/pages/Paywall').then(m => setComp(() => m.default)); }, []);
-  if (!Comp) return null;
-  return <Comp onClose={onClose} onUpgrade={onUpgrade} />;
-}
