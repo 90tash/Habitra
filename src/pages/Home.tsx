@@ -13,8 +13,10 @@ import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
 import MidnightPopup from '@/components/habits/MidnightPopup';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingState from '@/components/ui/LoadingState';
+import BadgeUnlockToast from '@/components/gamification/BadgeUnlockToast';
 import { getTodayStr, getGreeting } from '@/lib/habitUtils';
 import { HabitRepository, LogRepository } from '@/lib/repository';
+import { evaluateBadges, Badge } from '@/lib/gamification';
 import type { Habit, DailyLog, DailyLogInput } from '@/lib/types';
 
 const pageVariants = {
@@ -28,6 +30,7 @@ const itemVariants = {
 
 export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
+  const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
   const queryClient = useQueryClient();
   const todayStr = getTodayStr();
 
@@ -64,15 +67,50 @@ export default function Home() {
   });
   const getLogForHabit = (habitId: string) => todayLogs.find(l => l.habit_id === habitId);
 
+  const checkBadges = async (targetHabit: Habit, isNowComplete: boolean) => {
+    if (!isNowComplete) return;
+
+    // Check badges before
+    const badgesBefore = evaluateBadges(habits, allLogs);
+    
+    // Simulate updated state for immediate feedback
+    const simulatedLogs = [...allLogs];
+    const existingLogIdx = simulatedLogs.findIndex(l => l.habit_id === targetHabit.id && l.date === todayStr);
+    
+    if (existingLogIdx !== -1) {
+      simulatedLogs[existingLogIdx] = { ...simulatedLogs[existingLogIdx], is_completed: true };
+    } else {
+      simulatedLogs.push({ 
+        id: 'temp', habit_id: targetHabit.id, date: todayStr, is_completed: true, 
+        current_value: targetHabit.target_value, target_value: targetHabit.target_value, 
+        completed_at: new Date().toISOString(), notes: '' 
+      });
+    }
+
+    const simulatedHabits = habits.map(h => h.id === targetHabit.id ? { ...h, current_streak: (h.current_streak || 0) + 1, best_streak: Math.max((h.current_streak || 0) + 1, h.best_streak || 0) } : h);
+    
+    const badgesAfter = evaluateBadges(simulatedHabits, simulatedLogs);
+    const newBadge = badgesAfter.find(b => !badgesBefore.some(prev => prev.id === b.id));
+    
+    if (newBadge) {
+      setUnlockedBadge(newBadge);
+    }
+  };
+
   const handleIncrement = async (habit: Habit, log?: DailyLog) => {
     const newVal = (log?.current_value || 0) + 1;
     const isComplete = newVal >= habit.target_value;
+    
     if (log) {
       await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: newVal, is_completed: isComplete, completed_at: isComplete ? new Date().toISOString() : null } });
     } else {
       await createLogMutation.mutateAsync({ habit_id: habit.id, date: todayStr, current_value: newVal, target_value: habit.target_value, is_completed: isComplete });
     }
-    if (isComplete) await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
+    
+    if (isComplete) {
+      await checkBadges(habit, true);
+      await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
+    }
   };
 
   const handleDecrement = async (habit: Habit, log?: DailyLog) => {
@@ -86,6 +124,7 @@ export default function Home() {
     } else {
       await createLogMutation.mutateAsync({ habit_id: habit.id, date: todayStr, current_value: habit.target_value, target_value: habit.target_value, is_completed: true });
     }
+    await checkBadges(habit, true);
     await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
   };
 
@@ -190,7 +229,8 @@ export default function Home() {
           if (completed) await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
         }}
       />
+
+      <BadgeUnlockToast badge={unlockedBadge} onClose={() => setUnlockedBadge(null)} />
     </motion.div>
   );
 }
-

@@ -84,6 +84,7 @@ export default function HabitCard({ habit, log, onIncrement, onDecrement, onComp
 
         {/* Actions */}
         <div className="flex items-center gap-1">
+          {/* Multi-step habits: Allow +/- if not completed */}
           {!isCompleted && target > 1 && (
             <>
               <Button size="icon" variant="ghost"
@@ -98,6 +99,8 @@ export default function HabitCard({ habit, log, onIncrement, onDecrement, onComp
               </Button>
             </>
           )}
+          
+          {/* One-time habits: Only show check button if not completed */}
           {!isCompleted && target === 1 && (
             <motion.button
               whileTap={{ scale: 0.88 }}
@@ -108,18 +111,30 @@ export default function HabitCard({ habit, log, onIncrement, onDecrement, onComp
               <Check className="h-4 w-4" style={{ color: `${color}80` }} />
             </motion.button>
           )}
+
+          {/* Completion state: Shared for both, but one-time habits have no reset option */}
           {isCompleted && (
-            <motion.div
-              initial={{ scale: 0, rotate: -90 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              className="h-9 w-9 rounded-xl flex items-center justify-center glow-accent"
-              style={{ backgroundColor: `${color}22`, border: `1.5px solid ${color}60` }}
-            >
-              <Check className="h-4 w-4" style={{ color }} />
-            </motion.div>
+            <div className="flex items-center gap-1">
+              {target > 1 && (
+                <Button size="icon" variant="ghost"
+                  className="h-8 w-8 rounded-xl hover:bg-muted"
+                  onClick={() => onDecrement(habit, log)}>
+                  <Minus className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              )}
+              <motion.div
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="h-9 w-9 rounded-xl flex items-center justify-center glow-accent"
+                style={{ backgroundColor: `${color}22`, border: `1.5px solid ${color}60` }}
+              >
+                <Check className="h-4 w-4" style={{ color }} />
+              </motion.div>
+            </div>
           )}
         </div>
+
       </div>
     </motion.div>
   );

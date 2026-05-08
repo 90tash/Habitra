@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Trash2, LogOut, Pencil, Trophy, Moon, Sun, Zap } from 'lucide-react';
+import { Trash2, LogOut, Pencil, Trophy, Moon, Sun, Zap, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+
 import { Button } from '@/components/ui/button';
 import { useTheme, ACCENT_COLORS, THEMES } from '@/lib/useTheme';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -11,7 +13,7 @@ import XPBar from '@/components/gamification/XPBar';
 import { computeTotalXP, evaluateBadges, getLevelForXP } from '@/lib/gamification';
 import { useAuth } from '@/lib/AuthContext';
 import { HabitRepository, LogRepository } from '@/lib/repository';
-import { Habit, DailyLog } from '@/lib/types';
+import type { Habit, DailyLog } from '@/lib/types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -45,6 +47,31 @@ export default function Settings() {
     mutationFn: ({ id, data }: { id: string, data: Partial<Habit> }) => HabitRepository.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); setEditHabit(null); },
   });
+
+  const reorderHabitsMutation = useMutation({
+    mutationFn: (ids: string[]) => HabitRepository.reorder(ids),
+    onMutate: async (newIds) => {
+      await queryClient.cancelQueries({ queryKey: ['habits'] });
+      const previousHabits = queryClient.getQueryData<Habit[]>(['habits']);
+      if (previousHabits) {
+        const reordered = [...previousHabits].sort((a, b) => newIds.indexOf(a.id) - newIds.indexOf(b.id));
+        queryClient.setQueryData(['habits'], reordered);
+      }
+      return { previousHabits };
+    },
+    onError: (_err, _newIds, context) => {
+      if (context?.previousHabits) queryClient.setQueryData(['habits'], context.previousHabits);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['habits'] }),
+  });
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const items = Array.from(habits);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    reorderHabitsMutation.mutate(items.map(h => h.id));
+  };
 
   const xp = computeTotalXP(logs, habits);
   const level = getLevelForXP(xp);
@@ -141,49 +168,73 @@ export default function Settings() {
       {/* Manage Habits */}
       <motion.div variants={itemVariants}
         className="glass rounded-2xl card-shadow border border-border/40 overflow-hidden">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold px-4 pt-4 pb-2">Habits</p>
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Manage Habits</p>
+          <p className="text-[9px] text-muted-foreground/60 italic">Drag handles to reorder</p>
+        </div>
+        
         {habits.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-5">No habits yet</p>
         )}
-        {habits.map((habit, i) => (
-          <motion.div key={habit.id}
-            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors border-t border-border/30 first:border-t-0">
-            <span className="text-xl">{habit.icon || '🎯'}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{habit.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] text-muted-foreground capitalize">{habit.frequency} · {habit.target_value} {habit.unit}</span>
-                {habit.current_streak > 0 && (
-                  <span className="text-[10px] text-orange-400 flame">🔥{habit.current_streak}</span>
-                )}
+
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="habits">
+            {(provided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef}>
+                {habits.map((habit, i) => (
+                  <Draggable key={habit.id} draggableId={habit.id} index={i}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors border-t border-border/30 first:border-t-0 ${
+                          snapshot.isDragging ? 'bg-accent/10 border-accent/20 z-50' : 'hover:bg-muted/30'
+                        }`}
+                      >
+                        <div {...provided.dragHandleProps} className="shrink-0 p-1 -ml-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+                        <span className="text-xl shrink-0">{habit.icon || '🎯'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{habit.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground capitalize">{habit.frequency} · {habit.target_value} {habit.unit}</span>
+                            {habit.current_streak > 0 && (
+                              <span className="text-[10px] text-orange-400">🔥{habit.current_streak}</span>
+                            )}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0"
+                          onClick={() => setEditHabit(habit)}>
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-2xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete "{habit.title}"?</AlertDialogTitle>
+                              <AlertDialogDescription>This permanently deletes this habit and all history.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                              <AlertDialogAction className="rounded-xl bg-destructive text-destructive-foreground"
+                                onClick={() => deleteHabitMutation.mutate(habit.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0"
-              onClick={() => setEditHabit(habit)}>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-2xl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete "{habit.title}"?</AlertDialogTitle>
-                  <AlertDialogDescription>This permanently deletes this habit and all history.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="rounded-xl bg-destructive text-destructive-foreground"
-                    onClick={() => deleteHabitMutation.mutate(habit.id)}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </motion.div>
-        ))}
+            )}
+          </Droppable>
+        </DragDropContext>
       </motion.div>
 
       {/* Account */}
@@ -208,4 +259,3 @@ export default function Settings() {
     </motion.div>
   );
 }
-

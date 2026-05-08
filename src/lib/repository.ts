@@ -7,6 +7,13 @@ export const HabitRepository = {
   list: () => LocalDataStore.Habit.list('sort_order'),
   create: (data: HabitInput) => LocalDataStore.Habit.create(data),
   update: (id: string, data: Partial<HabitInput>) => LocalDataStore.Habit.update(id, data),
+  reorder: async (ids: string[]) => {
+    // Bulk update sort orders
+    await Promise.all(ids.map((id, index) => 
+      LocalDataStore.Habit.update(id, { sort_order: index })
+    ));
+    return { success: true };
+  },
   delete: async (id: string) => {
     await LocalDataStore.Habit.delete(id);
     await LocalDataStore.deleteLogsForHabit(id);
