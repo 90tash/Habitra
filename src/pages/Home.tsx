@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 import HabitCard from '@/components/habits/HabitCard';
 import DayProgress from '@/components/habits/DayProgress';
@@ -31,8 +31,10 @@ const itemVariants = {
 export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
   const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
+  const [midnightCheckDate, setMidnightCheckDate] = useState<string>(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const queryClient = useQueryClient();
   const todayStr = getTodayStr();
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
   // Using Repository pattern for all data access
   const { data: habits = [], isLoading: habitsLoading, isError: habitsError } = useQuery<Habit[]>({
@@ -43,10 +45,16 @@ export default function Home() {
     queryKey: ['dailyLogs', todayStr],
     queryFn: LogRepository.forToday,
   });
+  const { data: yesterdayLogs = [] } = useQuery<DailyLog[]>({
+    queryKey: ['dailyLogs', yesterdayStr],
+    queryFn: () => LogRepository.forDate(yesterdayStr),
+  });
   const { data: allLogs = [] } = useQuery<DailyLog[]>({
     queryKey: ['allLogs'],
     queryFn: () => LogRepository.recent(500),
   });
+
+  const checkLogs = midnightCheckDate === todayStr ? todayLogs : yesterdayLogs;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['dailyLogs'] });
@@ -219,12 +227,12 @@ export default function Home() {
         onSave={(data) => createHabitMutation.mutate(data)} />
 
 
-      <MidnightPopup habits={habits} logs={todayLogs}
-        onSaveProgress={async (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean) => {
+      <MidnightPopup habits={habits} logs={checkLogs} date={midnightCheckDate}
+        onSaveProgress={async (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean, targetDate: string) => {
           if (log) {
             await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: value, is_completed: completed, completed_at: completed ? new Date().toISOString() : null } });
           } else {
-            await createLogMutation.mutateAsync({ habit_id: habit.id, date: todayStr, current_value: value, target_value: habit.target_value, is_completed: completed });
+            await createLogMutation.mutateAsync({ habit_id: habit.id, date: targetDate, current_value: value, target_value: habit.target_value, is_completed: completed });
           }
           if (completed) await HabitRepository.updateStreak(habit, true).then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
         }}

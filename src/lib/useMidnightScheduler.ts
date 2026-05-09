@@ -6,12 +6,11 @@
  * Persists dismissal state in localStorage so it only triggers once per day.
  */
 import { useEffect, useRef, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { subDays, format } from 'date-fns';
+import Midnight from './midnightPlugin';
 
 const STORAGE_KEY = 'habitra-midnight-session';
-
-export function getMidnightSessionKey() {
-  return new Date().toDateString();
-}
 
 export function getMidnightSession() {
   try {
@@ -24,10 +23,11 @@ export function getMidnightSession() {
 }
 
 export function saveMidnightSession(data: any) {
+  const current = getMidnightSession() || {};
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    ...current,
     ...data,
-    date: new Date().toDateString(),
-    savedAt: new Date().toISOString(),
+    lastUpdate: new Date().toISOString(),
   }));
 }
 
@@ -35,13 +35,16 @@ export function clearMidnightSession() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-export function isMidnightSessionDismissedToday() {
+/**
+ * Checks if we have already prompted the user for a specific date
+ */
+export function hasPromptedForDate(dateStr: string) {
   const session = getMidnightSession();
-  return session?.date === new Date().toDateString() && session?.dismissed === true;
+  return session?.lastPromptedDate === dateStr;
 }
 
 interface UseMidnightSchedulerProps {
-  onTrigger: () => void;
+  onTrigger: (date: string) => void;
   enabled?: boolean;
 }
 
@@ -50,55 +53,66 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const firedRef = useRef(false);
 
-  const trigger = useCallback(() => {
+  const trigger = useCallback((date: string) => {
     if (!enabled) return;
-    onTrigger?.();
+    onTrigger?.(date);
   }, [onTrigger, enabled]);
 
-  const snooze = useCallback((minutes = 10) => {
+  const snooze = useCallback((date: string, minutes = 10) => {
     if (snoozeTimeoutRef.current) clearTimeout(snoozeTimeoutRef.current);
     snoozeTimeoutRef.current = setTimeout(() => {
-      trigger();
+      trigger(date);
     }, minutes * 60 * 1000);
   }, [trigger]);
 
   useEffect(() => {
     if (!enabled) return;
 
+    // Schedule native alarm if on Android
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.schedule().catch(err => console.error('Failed to schedule native midnight alarm:', err));
+    }
+
     const checkTime = () => {
       const now = new Date();
       const h = now.getHours();
       const m = now.getMinutes();
-      const todayKey = now.toDateString();
-
-      // Fire at midnight (00:00) or if it's already past midnight and not fired yet today
-      const isMidnight = h === 0 && m === 0;
-
-      // Also check: if it's between 00:00 and 00:05 and we haven't fired today yet
-      const isJustPastMidnight = h === 0 && m <= 5;
+      
+      const todayStr = format(now, 'yyyy-MM-dd');
+      const yesterdayStr = format(subDays(now, 1), 'yyyy-MM-dd');
 
       const session = getMidnightSession();
-      const firedToday = session?.date === todayKey && session?.triggered === true;
 
-      if ((isMidnight || (isJustPastMidnight && !firedRef.current)) && !firedToday) {
+      // Case 1: Exactly Midnight (or within 5 mins)
+      // Trigger for "Yesterday" (the day that just ended)
+      const isMidnightWindow = h === 0 && m <= 5;
+      if (isMidnightWindow && !firedRef.current && session?.lastPromptedDate !== yesterdayStr) {
         firedRef.current = true;
-        saveMidnightSession({ triggered: true, dismissed: false });
-        trigger();
+        saveMidnightSession({ lastPromptedDate: yesterdayStr, triggeredAt: new Date().toISOString() });
+        trigger(yesterdayStr);
+        return;
       }
 
-      // Reset firedRef at 00:06 for next day
-      if (h === 0 && m >= 6) {
-        firedRef.current = false;
+      // Case 2: "Catch-up" Mode
+      // If we haven't prompted for yesterday yet, and it's later in the day
+      if (h >= 5 && session?.lastPromptedDate !== yesterdayStr) {
+        // We only trigger catch-up once per day
+        saveMidnightSession({ lastPromptedDate: yesterdayStr, isCatchUp: true });
+        trigger(yesterdayStr);
       }
-      if (h > 0) {
+
+      // Reset firedRef when out of midnight window
+      if (h > 0 || m > 5) {
         firedRef.current = false;
       }
     };
 
-    checkTime();
-    intervalRef.current = setInterval(checkTime, 30 * 1000); // check every 30 seconds
+    // Delay first check slightly to let app initialize
+    const timeout = setTimeout(checkTime, 2000);
+    intervalRef.current = setInterval(checkTime, 60 * 1000);
 
     return () => {
+      clearTimeout(timeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (snoozeTimeoutRef.current) clearTimeout(snoozeTimeoutRef.current);
     };

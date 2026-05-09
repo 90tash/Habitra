@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, CheckCheck, Bell, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Capacitor } from '@capacitor/core';
+import Midnight from '@/lib/midnightPlugin';
 
 import MidnightHabitRow from './MidnightHabitRow';
 import MidnightCompletionScreen from './MidnightCompletionScreen';
@@ -19,7 +21,8 @@ const SNOOZE_MINUTES = 10;
 interface MidnightPopupProps {
   habits: Habit[];
   logs: DailyLog[];
-  onSaveProgress: (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean) => Promise<void>;
+  date: string;
+  onSaveProgress: (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean, date: string) => Promise<void>;
 }
 
 interface HabitChange {
@@ -32,7 +35,7 @@ interface HabitChange {
   };
 }
 
-export default function MidnightPopup({ habits, logs, onSaveProgress }: MidnightPopupProps) {
+export default function MidnightPopup({ habits, logs, date, onSaveProgress }: MidnightPopupProps) {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState<'habits' | 'result'>('habits');
   const [snoozeCount, setSnoozeCount] = useState(0);
@@ -46,23 +49,42 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
     return !log?.is_completed;
   });
 
-  const open = useCallback(() => {
-    if (isMidnightSessionDismissedToday()) return;
+  const open = useCallback((triggerDate?: string) => {
+    // If a specific date was passed via trigger, ensure we are targeting it
+    if (triggerDate && triggerDate !== date) return;
+    
     if (incompleteHabits.length === 0) return;
     setPhase('habits');
     setPendingChanges({});
     setVisible(true);
-  }, [incompleteHabits.length]);
+  }, [incompleteHabits.length, date]);
 
   useEffect(() => {
-    const session = getMidnightSession();
-    const today = new Date().toDateString();
-    if (session?.date === today && session?.triggered && !session?.dismissed) {
-      setTimeout(open, 1200);
+    // Check native trigger if on Android
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.checkTrigger().then(res => {
+        if (res.isMidnightAlarm) {
+          // Native alarm always targets "Yesterday"
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          if (yesterdayStr === date) open(date);
+        }
+      });
     }
-  }, [open]);  
 
-  const { snooze } = useMidnightScheduler({ onTrigger: open, enabled: true });
+    const session = getMidnightSession();
+    if (session?.lastPromptedDate === date && !session?.dismissed) {
+      setTimeout(() => open(date), 1200);
+    }
+  }, [open, date]);  
+
+  const { snooze } = useMidnightScheduler({ 
+    onTrigger: (d) => {
+      if (d === date) open(d);
+    }, 
+    enabled: true 
+  });
 
   const handleHabitChange = useCallback((habit: Habit, log: DailyLog | undefined, update: HabitChange['update']) => {
     setPendingChanges(prev => ({ ...prev, [habit.id]: { habit, log, update } }));
@@ -73,12 +95,12 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
     const changes = Object.values(pendingChanges);
     for (const { habit, log, update } of changes) {
       if (update.skipped) continue;
-      await onSaveProgress(habit, log, update.value, update.completed);
+      await onSaveProgress(habit, log, update.value, update.completed, date);
     }
     const completedNow = changes.filter(c => c.update.completed).length;
     const alreadyDone = logs.filter(l => l.is_completed).length;
     const totalDone = completedNow + alreadyDone;
-    saveMidnightSession({ triggered: true, dismissed: true, completedCount: totalDone });
+    saveMidnightSession({ lastPromptedDate: date, dismissed: true, completedCount: totalDone });
     setSaving(false);
     setPhase('result');
   };
@@ -97,7 +119,7 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
     const newCount = snoozeCount + 1;
     setSnoozeCount(newCount);
     setVisible(false);
-    saveMidnightSession({ triggered: true, dismissed: false, snoozed: true });
+    saveMidnightSession({ lastPromptedDate: date, dismissed: false, snoozed: true });
 
     let remaining = SNOOZE_MINUTES * 60;
     setSnoozeCountdown(remaining);
@@ -110,12 +132,12 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
         setSnoozeCountdown(null);
       }
     }, 1000);
-    snooze(SNOOZE_MINUTES);
+    snooze(date, SNOOZE_MINUTES);
   };
 
 
   const handleDismiss = () => {
-    saveMidnightSession({ triggered: true, dismissed: true });
+    saveMidnightSession({ lastPromptedDate: date, dismissed: true });
     setVisible(false);
     if (countdownRef.current) clearInterval(countdownRef.current);
     setSnoozeCountdown(null);
@@ -131,7 +153,10 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
   const totalCompleted = completedInPending + alreadyCompleted;
   const totalHabits = habits.length;
 
+  const isYesterday = date !== new Date().toISOString().split('T')[0];
+
   const motivationalHeader = () => {
+    if (isYesterday) return "You missed yesterday's check-in! Don't worry, you can still log your progress now.";
     const ratio = totalHabits > 0 ? alreadyCompleted / totalHabits : 0;
     if (ratio >= 0.8) return 'Almost there — finish strong! 💪';
     if (ratio >= 0.5) return "You're past halfway — great work! ⚡";
@@ -201,10 +226,10 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
                         </motion.div>
                         <div>
                           <p className="text-[11px] font-medium text-white/40 uppercase tracking-widest">
-                            Midnight Check-In
+                            {isYesterday ? 'Morning Catch-Up' : 'Midnight Check-In'}
                           </p>
                           <h1 className="text-xl font-bold font-space text-white leading-tight mt-0.5">
-                            {incompleteHabits.length} habit{incompleteHabits.length !== 1 ? 's' : ''} unfinished
+                            {isYesterday ? "Yesterday's Habits" : `${incompleteHabits.length} habit${incompleteHabits.length !== 1 ? 's' : ''} unfinished`}
                           </h1>
                         </div>
                       </div>
@@ -217,7 +242,9 @@ export default function MidnightPopup({ habits, logs, onSaveProgress }: Midnight
                       )}
                     </div>
 
-                    <p className="text-sm text-white/50 mt-3 leading-relaxed">{motivationalHeader()}</p>
+                    <p className="text-sm text-white/50 mt-3 leading-relaxed">
+                      {motivationalHeader()}
+                    </p>
 
                     <div className="mt-3 flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
