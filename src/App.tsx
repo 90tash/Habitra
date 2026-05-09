@@ -10,7 +10,6 @@ import { useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
 import Statistics from '@/pages/Statistics';
-import Calendar from '@/pages/Calendar';
 import Focus from '@/pages/Focus';
 import Settings from '@/pages/Settings';
 import HabitDetails from '@/pages/HabitDetails';
@@ -87,7 +86,6 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/habit/:id" element={<HabitDetails />} />
         <Route path="/statistics" element={<Statistics />} />
-        <Route path="/calendar" element={<Calendar />} />
         <Route path="/focus" element={<Focus />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
