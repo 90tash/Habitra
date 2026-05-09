@@ -1,9 +1,104 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, SkipForward, Settings2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, Settings2, Target, History, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProgressRing from '@/components/habits/ProgressRing';
-import WhiteNoisePlayer from '@/components/focus/WhiteNoisePlayer';
+
+import { format, getDaysInMonth } from 'date-fns';
+
+function ProgressBar({ label, current, target, unit, color }: { label: string, current: number, target: number, unit: string, color: string }) {
+  const percent = Math.min((current / target) * 100, 100);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-end">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-xs font-bold font-space">{current}{unit} <span className="text-muted-foreground/50">/ {target}{unit}</span></p>
+      </div>
+      <div className="h-2 bg-muted/30 rounded-full overflow-hidden border border-white/5">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          className="h-full rounded-full"
+          style={{ background: color, boxShadow: `0 0 10px ${color}40` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FocusAnalytics({ totalFocusMin, sessionsToday }: { totalFocusMin: number, sessionsToday: number }) {
+  const [activeTab, setActiveTab] = useState<'focus' | 'break'>('focus');
+
+  const totalHoursInWeek = 24 * 7;
+  const totalHoursInMonth = getDaysInMonth(new Date()) * 24;
+  const totalHoursInYear = 24 * 365;
+
+  const stats = {
+    focus: {
+      week: { current: Math.round(totalFocusMin / 60), target: totalHoursInWeek },
+      month: { current: Math.round(totalFocusMin / 60), target: totalHoursInMonth },
+      year: { current: Math.round(totalFocusMin / 60), target: totalHoursInYear },
+      lifetime: { sessions: sessionsToday, hours: Math.round(totalFocusMin / 60) }
+    },
+    break: {
+      week: { current: 0, target: totalHoursInWeek },
+      month: { current: 0, target: totalHoursInMonth },
+      year: { current: 0, target: totalHoursInYear },
+      lifetime: { sessions: 0, hours: 0 }
+    }
+  };
+
+  const currentStats = stats[activeTab];
+
+  return (
+    <div className="space-y-4">
+      {/* Sub Tabs */}
+      <div className="flex bg-muted/30 p-1 rounded-2xl border border-border/20">
+        <button
+          onClick={() => setActiveTab('focus')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'focus' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Target className="h-3.5 w-3.5" />
+          Focus
+        </button>
+        <button
+          onClick={() => setActiveTab('break')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'break' ? 'bg-accent text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <History className="h-3.5 w-3.5" />
+          Break
+        </button>
+      </div>
+
+      {/* Progress Bars */}
+      <div className="glass rounded-2xl p-4 card-shadow border border-border/30 space-y-4">
+        <ProgressBar label="This Week" current={currentStats.week.current} target={currentStats.week.target} unit="h" color={activeTab === 'focus' ? 'hsl(var(--primary))' : 'hsl(var(--accent))'} />
+        <ProgressBar label="This Month" current={currentStats.month.current} target={currentStats.month.target} unit="h" color={activeTab === 'focus' ? 'hsl(var(--primary))' : 'hsl(var(--accent))'} />
+        <ProgressBar label="This Year" current={currentStats.year.current} target={currentStats.year.target} unit="h" color={activeTab === 'focus' ? 'hsl(var(--primary))' : 'hsl(var(--accent))'} />
+      </div>
+
+      {/* Lifetime Tab */}
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        className="glass rounded-2xl p-4 card-shadow border border-border/30 flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${activeTab === 'focus' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
+            <Globe className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Lifetime</p>
+            <p className="text-sm font-bold">{currentStats.lifetime.hours} Hours tracked</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold font-space">{currentStats.lifetime.sessions}</p>
+          <p className="text-[10px] text-muted-foreground uppercase">Sessions</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 type Mode = {
   key: 'focus' | 'short' | 'long';
@@ -212,7 +307,10 @@ export default function Focus() {
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants}><WhiteNoisePlayer /></motion.div>
+      {/* Analytics Section */}
+      <motion.div variants={itemVariants}>
+        <FocusAnalytics totalFocusMin={totalFocusMin} sessionsToday={sessionsToday} />
+      </motion.div>
 
       {/* Completion overlay */}
       <AnimatePresence>

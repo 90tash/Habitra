@@ -182,9 +182,6 @@ export default function Settings() {
         </div>
       </motion.div>
 
-      {/* Badges */}
-      <motion.div variants={itemVariants}><BadgesGrid unlockedBadges={unlockedBadges} /></motion.div>
-
       {/* Manage Habits */}
       <motion.div variants={itemVariants}
         className="glass rounded-2xl card-shadow border border-border/40 overflow-hidden">
