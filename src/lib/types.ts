@@ -64,6 +64,7 @@ export type LocalUser = {
   avatarUri?: string | null;
   bannerUri?: string | null;
   accentColor: string;
+  created_at?: string;
 };
 
 export type UserPreferences = {

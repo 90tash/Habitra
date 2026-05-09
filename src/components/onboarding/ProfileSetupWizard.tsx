@@ -61,6 +61,7 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
       email: 'local@habitra.app',
       avatarUri: avatar,
       accentColor: ACCENT_COLORS[accentIdx].hex,
+      created_at: new Date().toISOString(),
     };
     
     const preferences: UserPreferences = {
