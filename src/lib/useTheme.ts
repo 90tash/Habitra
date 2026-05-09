@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 
 export const THEMES = ['light', 'dark', 'amoled'];
 export const ACCENT_COLORS = [
-  { name: 'Violet',  primary: '252 87% 62%', dark: '252 87% 67%' },
-  { name: 'Indigo',  primary: '239 84% 58%', dark: '239 84% 64%' },
-  { name: 'Blue',    primary: '213 90% 54%', dark: '213 90% 60%' },
-  { name: 'Cyan',    primary: '188 90% 40%', dark: '188 90% 48%' },
-  { name: 'Emerald', primary: '155 75% 40%', dark: '155 75% 46%' },
-  { name: 'Rose',    primary: '346 84% 56%', dark: '346 84% 62%' },
-  { name: 'Orange',  primary: '24 90% 50%',  dark: '24 90% 56%' },
+  { name: 'Cyan',    primary: '188 90% 40%', dark: '188 90% 48%', hex: '#00E5FF' },
+  { name: 'Emerald', primary: '155 75% 40%', dark: '155 75% 46%', hex: '#10B981' },
+  { name: 'Purple',  primary: '262 83% 58%', dark: '262 83% 64%', hex: '#7C3AED' },
+  { name: 'Pink',    primary: '322 81% 55%', dark: '322 81% 61%', hex: '#EC4899' },
+  { name: 'Blue',    primary: '213 90% 54%', dark: '213 90% 60%', hex: '#3B82F6' },
+  { name: 'Orange',  primary: '24 90% 50%',  dark: '24 90% 56%',  hex: '#F59E0B' },
+  { name: 'Red',     primary: '0 84% 60%',   dark: '0 84% 66%',   hex: '#EF4444' },
+  { name: 'Yellow',  primary: '45 93% 47%',  dark: '45 93% 53%',  hex: '#EAB308' },
 ];
 
 function applyTheme(theme: string) {

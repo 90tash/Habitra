@@ -1,7 +1,8 @@
-import type { LocalUser } from '@/lib/types';
+import type { LocalUser, UserPreferences } from '@/lib/types';
 
 const SETTINGS_KEY = 'habitra:settings';
 const IDENTITY_KEY = 'habitra:identity';
+const PREFERENCES_KEY = 'habitra:preferences';
 
 export type AppSettings = {
   remindersEnabled: boolean;
@@ -17,8 +18,14 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const DEFAULT_IDENTITY: LocalUser = {
   id: 'local-user',
-  full_name: 'Local User',
+  full_name: '',
   email: 'local@habitra.app',
+  accentColor: '#7C5CFC',
+};
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  dayEndTime: '00:00',
+  onboardingCompleted: false,
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
@@ -47,6 +54,12 @@ export const appStore = {
   updateIdentity: (patch: Partial<LocalUser>) => {
     const next = { ...appStore.getIdentity(), ...patch };
     writeJson(IDENTITY_KEY, next);
+    return next;
+  },
+  getPreferences: () => readJson(PREFERENCES_KEY, DEFAULT_PREFERENCES),
+  updatePreferences: (patch: Partial<UserPreferences>) => {
+    const next = { ...appStore.getPreferences(), ...patch };
+    writeJson(PREFERENCES_KEY, next);
     return next;
   },
 };

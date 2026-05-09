@@ -16,17 +16,25 @@ import Settings from '@/pages/Settings';
 import HabitDetails from '@/pages/HabitDetails';
 import SplashScreen from '@/pages/SplashScreen';
 import Onboarding from '@/pages/Onboarding';
+import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { isOnboardingComplete } from '@/lib/onboarding';
+import { appStore } from '@/store/appStore';
 
 const AuthenticatedApp = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [appReady, setAppReady] = useState(false);
 
   const handleSplashDone = () => {
     setShowSplash(false);
+    const identity = appStore.getIdentity();
+    const isNewUser = !identity.full_name;
+
     if (!isOnboardingComplete()) {
       setShowOnboarding(true);
+    } else if (isNewUser) {
+      setShowProfileSetup(true);
     } else {
       setAppReady(true);
     }
@@ -34,6 +42,16 @@ const AuthenticatedApp = () => {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    const identity = appStore.getIdentity();
+    if (!identity.full_name) {
+      setShowProfileSetup(true);
+    } else {
+      setAppReady(true);
+    }
+  };
+
+  const handleProfileSetupComplete = () => {
+    setShowProfileSetup(false);
     setAppReady(true);
   };
 
@@ -49,6 +67,14 @@ const AuthenticatedApp = () => {
     return (
       <AnimatePresence>
         <Onboarding onComplete={handleOnboardingComplete} />
+      </AnimatePresence>
+    );
+  }
+
+  if (showProfileSetup) {
+    return (
+      <AnimatePresence>
+        <ProfileSetupWizard onComplete={handleProfileSetupComplete} />
       </AnimatePresence>
     );
   }

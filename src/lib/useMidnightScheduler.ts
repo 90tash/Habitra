@@ -8,46 +8,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { subDays, format } from 'date-fns';
+import { appStore } from '@/store/appStore';
 import Midnight from './midnightPlugin';
-
-const STORAGE_KEY = 'habitra-midnight-session';
-
-export function getMidnightSession() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function saveMidnightSession(data: any) {
-  const current = getMidnightSession() || {};
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    ...current,
-    ...data,
-    lastUpdate: new Date().toISOString(),
-  }));
-}
-
-export function clearMidnightSession() {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-/**
- * Checks if we have already prompted the user for a specific date
- */
-export function hasPromptedForDate(dateStr: string) {
-  const session = getMidnightSession();
-  return session?.lastPromptedDate === dateStr;
-}
-
-interface UseMidnightSchedulerProps {
-  onTrigger: (date: string) => void;
-  enabled?: boolean;
-}
-
+...
 export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightSchedulerProps) {
   const snoozeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -78,15 +41,18 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
       const h = now.getHours();
       const m = now.getMinutes();
       
+      const preferences = appStore.getPreferences();
+      const [endH, endM] = preferences.dayEndTime.split(':').map(Number);
+
       const todayStr = format(now, 'yyyy-MM-dd');
       const yesterdayStr = format(subDays(now, 1), 'yyyy-MM-dd');
 
       const session = getMidnightSession();
 
-      // Case 1: Exactly Midnight (or within 5 mins)
-      // Trigger for "Yesterday" (the day that just ended)
-      const isMidnightWindow = h === 0 && m <= 5;
-      if (isMidnightWindow && !firedRef.current && session?.lastPromptedDate !== yesterdayStr) {
+      // Case 1: Trigger at custom day end time (or within 5 mins)
+      const isCustomTimeWindow = h === endH && m >= endM && m <= endM + 5;
+      
+      if (isCustomTimeWindow && !firedRef.current && session?.lastPromptedDate !== yesterdayStr) {
         firedRef.current = true;
         saveMidnightSession({ lastPromptedDate: yesterdayStr, triggeredAt: new Date().toISOString() });
         trigger(yesterdayStr);
@@ -94,15 +60,15 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
       }
 
       // Case 2: "Catch-up" Mode
-      // If we haven't prompted for yesterday yet, and it's later in the day
-      if (h >= 5 && session?.lastPromptedDate !== yesterdayStr) {
-        // We only trigger catch-up once per day
+      // Trigger catch-up if we haven't prompted for yesterday yet and it's 5 hours past the day end time
+      let catchUpHour = (endH + 5) % 24;
+      if (h === catchUpHour && session?.lastPromptedDate !== yesterdayStr) {
         saveMidnightSession({ lastPromptedDate: yesterdayStr, isCatchUp: true });
         trigger(yesterdayStr);
       }
 
-      // Reset firedRef when out of midnight window
-      if (h > 0 || m > 5) {
+      // Reset firedRef when out of the trigger window
+      if (h !== endH || m > endM + 5) {
         firedRef.current = false;
       }
     };
