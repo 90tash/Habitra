@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Camera, X, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { ACCENT_COLORS, useTheme } from '@/lib/useTheme';
 import { appStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
+import Midnight from '@/lib/midnightPlugin';
+import { Capacitor } from '@capacitor/core';
 import type { LocalUser, UserPreferences } from '@/lib/types';
 
 interface ProfileSetupWizardProps {
@@ -21,8 +23,25 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [dayEndTime, setDayEndTime] = useState('00:00');
+  const [hasOverlayPermission, setHasOverlayPermission] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.checkOverlayPermission().then(res => setHasOverlayPermission(res.granted));
+    }
+  }, [step]);
+
+  const requestPermission = async () => {
+    if (Capacitor.getPlatform() === 'android') {
+      await Midnight.requestOverlayPermission();
+      // Re-check after a short delay (user comes back from settings)
+      setTimeout(() => {
+        Midnight.checkOverlayPermission().then(res => setHasOverlayPermission(res.granted));
+      }, 1000);
+    }
+  };
 
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,6 +269,21 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
                   </div>
                 </div>
               </div>
+
+              {Capacitor.getPlatform() === 'android' && !hasOverlayPermission && (
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 space-y-3 shadow-lg">
+                  <div className="flex items-center gap-3 text-orange-400">
+                    <X className="h-5 w-5" />
+                    <p className="text-sm font-bold">Permission Required</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    To show the habit check-in over your lock screen at midnight, please enable "Display over other apps" in settings.
+                  </p>
+                  <Button onClick={requestPermission} variant="outline" className="w-full h-12 rounded-2xl border-orange-500/30 text-orange-400 hover:bg-orange-500/10 active:scale-95 transition-all">
+                    Enable in Settings
+                  </Button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

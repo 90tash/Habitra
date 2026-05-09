@@ -21,41 +21,32 @@ import { isOnboardingComplete } from '@/lib/onboarding';
 import { appStore } from '@/store/appStore';
 
 const AuthenticatedApp = () => {
-  const [showSplash, setShowSplash] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
-  const [appReady, setAppReady] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'splash' | 'onboarding' | 'profile' | 'ready'>('splash');
 
-  const handleSplashDone = () => {
-    setShowSplash(false);
+  const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
     const identity = appStore.getIdentity();
-    const isNewUser = !identity.full_name;
+    const hasProfile = !!identity.full_name;
+    const tourDone = isOnboardingComplete();
 
-    if (!isOnboardingComplete()) {
-      setShowOnboarding(true);
-    } else if (isNewUser) {
-      setShowProfileSetup(true);
-    } else {
-      setAppReady(true);
+    if (completedStep === 'splash') {
+      if (!tourDone) return 'onboarding';
+      if (!hasProfile) return 'profile';
+      return 'ready';
     }
-  };
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    const identity = appStore.getIdentity();
-    if (!identity.full_name) {
-      setShowProfileSetup(true);
-    } else {
-      setAppReady(true);
+    if (completedStep === 'onboarding') {
+      if (!hasProfile) return 'profile';
+      return 'ready';
     }
+
+    return 'ready';
   };
 
-  const handleProfileSetupComplete = () => {
-    setShowProfileSetup(false);
-    setAppReady(true);
-  };
+  const handleSplashDone = () => setCurrentStep(checkNextStep('splash'));
+  const handleOnboardingComplete = () => setCurrentStep(checkNextStep('onboarding'));
+  const handleProfileSetupComplete = () => setCurrentStep('ready');
 
-  if (showSplash) {
+  if (currentStep === 'splash') {
     return (
       <AnimatePresence>
         <SplashScreen onDone={handleSplashDone} />
@@ -63,7 +54,7 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (showOnboarding) {
+  if (currentStep === 'onboarding') {
     return (
       <AnimatePresence>
         <Onboarding onComplete={handleOnboardingComplete} />
@@ -71,7 +62,7 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (showProfileSetup) {
+  if (currentStep === 'profile') {
     return (
       <AnimatePresence>
         <ProfileSetupWizard onComplete={handleProfileSetupComplete} />
@@ -79,7 +70,7 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (!appReady) {
+  if (currentStep !== 'ready') {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="text-center">

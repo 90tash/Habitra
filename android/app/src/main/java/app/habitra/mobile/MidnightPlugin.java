@@ -4,6 +4,8 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -30,6 +32,29 @@ public class MidnightPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("isMidnightAlarm", isMidnight);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void checkOverlayPermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            ret.put("granted", Settings.canDrawOverlays(getContext()));
+        } else {
+            ret.put("granted", true);
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestOverlayPermission(PluginCall call) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(getContext())) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getContext().getPackageName()));
+                getActivity().startActivity(intent);
+            }
+        }
+        call.resolve();
     }
 
     public static void scheduleAlarm(Context context) {
