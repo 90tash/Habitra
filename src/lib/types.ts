@@ -61,6 +61,14 @@ export type LocalUser = {
   id: string;
   full_name: string;
   email: string;
+  avatarUri?: string | null;
+  bannerUri?: string | null;
+  accentColor: string;
+};
+
+export type UserPreferences = {
+  dayEndTime: string; // e.g. "00:00"
+  onboardingCompleted: boolean;
 };
 
 export type AuthError = {

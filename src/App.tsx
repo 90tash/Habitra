@@ -4,8 +4,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
-import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { AuthProvider } from '@/lib/AuthContext';
 import { useState } from 'react';
 
 import AppLayout from '@/components/layout/AppLayout';
@@ -20,7 +19,6 @@ import Onboarding from '@/pages/Onboarding';
 import { isOnboardingComplete } from '@/lib/onboarding';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
@@ -55,7 +53,7 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (!appReady || isLoadingPublicSettings || isLoadingAuth) {
+  if (!appReady) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="text-center">
@@ -64,11 +62,6 @@ const AuthenticatedApp = () => {
         </div>
       </div>
     );
-  }
-
-  if (authError) {
-    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
-    if (authError.type === 'auth_required') { navigateToLogin(); return null; }
   }
 
   return (

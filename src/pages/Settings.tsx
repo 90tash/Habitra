@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Trash2, LogOut, Pencil, Trophy, Moon, Sun, Zap, GripVertical } from 'lucide-react';
+import { Trash2, Pencil, Trophy, Moon, Sun, Zap, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
 import BadgesGrid from '@/components/gamification/BadgesGrid';
 import XPBar from '@/components/gamification/XPBar';
 import { computeTotalXP, evaluateBadges, getLevelForXP } from '@/lib/gamification';
-import { useAuth } from '@/lib/AuthContext';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 import type { Habit, DailyLog } from '@/lib/types';
 
@@ -29,7 +28,6 @@ const THEME_LABELS: Record<string, string> = { light: 'Light', dark: 'Dark', amo
 
 export default function Settings() {
   const { theme, setTheme, accentIdx, setAccent } = useTheme();
-  const { logout } = useAuth();
   const queryClient = useQueryClient();
   const [editHabit, setEditHabit] = useState<Habit | null>(null);
 
@@ -235,21 +233,6 @@ export default function Settings() {
             )}
           </Droppable>
         </DragDropContext>
-      </motion.div>
-
-      {/* Account */}
-      <motion.div variants={itemVariants}
-        className="glass rounded-2xl card-shadow border border-border/40">
-        <button onClick={() => logout()}
-          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl hover:bg-destructive/5 transition-colors">
-          <div className="h-9 w-9 rounded-xl bg-destructive/10 flex items-center justify-center">
-            <LogOut className="h-4 w-4 text-destructive" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-medium text-destructive">Sign Out</p>
-            <p className="text-[10px] text-muted-foreground">Log out of your account</p>
-          </div>
-        </button>
       </motion.div>
 
       {editHabit && (
