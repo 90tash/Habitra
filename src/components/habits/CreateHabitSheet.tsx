@@ -91,7 +91,7 @@ export default function CreateHabitSheet({ open, onClose, onSave, editHabit }: C
   return (
     <>
       <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-        <SheetContent side="bottom" className="mx-auto max-h-[96vh] max-w-md overflow-y-auto rounded-t-[32px] border-border/50 bg-background/80 backdrop-blur-xl">
+        <SheetContent side="bottom" className="mx-auto max-h-[96vh] max-w-md overflow-y-auto rounded-t-[32px] border-border/50 bg-background/95 backdrop-blur-md">
           <SheetHeader className="pb-4">
             <SheetTitle className="text-2xl font-bold font-space gradient-text">
               {editHabit ? 'Edit Habit' : 'Create Habit'}
@@ -193,7 +193,7 @@ export default function CreateHabitSheet({ open, onClose, onSave, editHabit }: C
 
       {/* Icon Picker Dialog */}
       <Dialog open={showIconPicker} onOpenChange={setShowIconPicker}>
-        <DialogContent className="max-w-xs rounded-[32px] border-border/50 bg-background/95 backdrop-blur-xl p-6">
+        <DialogContent className="max-w-xs rounded-[32px] border-border/50 bg-background/98 backdrop-blur-sm p-6">
           <DialogHeader>
             <DialogTitle className="text-center font-space">Choose Icon</DialogTitle>
           </DialogHeader>
@@ -220,7 +220,7 @@ export default function CreateHabitSheet({ open, onClose, onSave, editHabit }: C
 
       {/* Color Picker Dialog */}
       <Dialog open={showColorPicker} onOpenChange={setShowColorPicker}>
-        <DialogContent className="max-w-xs rounded-[32px] border-border/50 bg-background/95 backdrop-blur-xl p-6">
+        <DialogContent className="max-w-xs rounded-[32px] border-border/50 bg-background/98 backdrop-blur-sm p-6">
           <DialogHeader>
             <DialogTitle className="text-center font-space">Choose Color</DialogTitle>
           </DialogHeader>
