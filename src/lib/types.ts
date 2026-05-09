@@ -10,6 +10,7 @@ export type HabitCategory =
   | 'other';
 
 export type HabitFrequency = 'daily' | 'weekly' | 'monthly';
+export type TimeOfDay = 'anytime' | 'morning' | 'afternoon' | 'evening';
 
 export type EntityBase = {
   id: string;
@@ -24,6 +25,7 @@ export type Habit = EntityBase & {
   category: HabitCategory;
   color: string;
   frequency: HabitFrequency;
+  timeOfDay: TimeOfDay;
   target_value: number;
   unit: string;
   reminder_time?: string;

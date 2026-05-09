@@ -121,6 +121,7 @@ export const LocalDataStore = {
     category: 'other',
     color: '#7C5CFC',
     frequency: 'daily',
+    timeOfDay: 'anytime',
     target_value: 1,
     unit: 'times',
     current_streak: 0,
