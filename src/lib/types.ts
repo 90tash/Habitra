@@ -61,6 +61,8 @@ export type LocalUser = {
   id: string;
   full_name: string;
   email: string;
+  bio?: string;
+  tags?: string[];
   avatarUri?: string | null;
   bannerUri?: string | null;
   accentColor: string;

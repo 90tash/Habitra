@@ -20,6 +20,8 @@ const DEFAULT_IDENTITY: LocalUser = {
   id: 'local-user',
   full_name: '',
   email: 'local@habitra.app',
+  bio: '',
+  tags: [],
   accentColor: '#7C5CFC',
 };
 
