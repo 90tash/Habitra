@@ -99,32 +99,38 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
       const isFirstDay = createdDate.toDateString() === now.toDateString();
 
       const preferences = appStore.getPreferences();
-      const [endH, endM] = (preferences.dayEndTime || '00:00').split(':').map(Number);
+      const [revH, revM] = (preferences.dailyReviewTime || '22:00').split(':').map(Number);
 
-      const yesterdayStr = format(subDays(now, 1), 'yyyy-MM-dd');
+      // Smart Date Logic:
+      // If the review time is between 00:00 and 05:59, we are asking about "Yesterday".
+      // If the review time is between 06:00 and 23:59, we are asking about "Today".
+      const isLateNightReview = revH >= 0 && revH < 6;
+      const targetDate = isLateNightReview 
+        ? subDays(now, 1) // Reviewing yesterday
+        : now;            // Reviewing today
+      
+      const targetDateStr = format(targetDate, 'yyyy-MM-dd');
       const session = getMidnightSession();
 
-      // Case 1: Trigger at custom day end time (or within 5 mins)
-      const isCustomTimeWindow = h === endH && m >= endM && m <= endM + 5;
+      // Case 1: Trigger at custom review time (or within 5 mins)
+      const isCustomTimeWindow = h === revH && m >= revM && m <= revM + 5;
       
-      // Skip yesterday prompt if it's the very first day of using the app
-      if (isCustomTimeWindow && !firedRef.current && !isFirstDay && session?.lastPromptedDate !== yesterdayStr) {
+      if (isCustomTimeWindow && !firedRef.current && session?.lastPromptedDate !== targetDateStr) {
         firedRef.current = true;
-        saveMidnightSession({ lastPromptedDate: yesterdayStr, triggeredAt: new Date().toISOString() });
-        trigger(yesterdayStr);
+        saveMidnightSession({ lastPromptedDate: targetDateStr, triggeredAt: new Date().toISOString() });
+        trigger(targetDateStr);
         return;
       }
 
-      // Case 2: "Catch-up" Mode
-      // Trigger catch-up if we haven't prompted for yesterday yet and it's 5 hours past the day end time
-      const catchUpHour = (endH + 5) % 24;
-      if (h === catchUpHour && !isFirstDay && session?.lastPromptedDate !== yesterdayStr) {
-        saveMidnightSession({ lastPromptedDate: yesterdayStr, isCatchUp: true });
-        trigger(yesterdayStr);
+      // Case 2: "Catch-up" Mode (5 hours past review time)
+      const catchUpHour = (revH + 5) % 24;
+      if (h === catchUpHour && session?.lastPromptedDate !== targetDateStr) {
+        saveMidnightSession({ lastPromptedDate: targetDateStr, isCatchUp: true });
+        trigger(targetDateStr);
       }
 
       // Reset firedRef when out of the trigger window
-      if (h !== endH || (m < endM || m > endM + 5)) {
+      if (h !== revH || (m < revM || m > revM + 5)) {
         firedRef.current = false;
       }
     };
