@@ -16,6 +16,7 @@ type EntityStore<T extends { id: string }> = {
   filter: (query: EntityQuery<T>, sort?: SortValue<T>, limit?: number) => Promise<T[]>;
   create: (data: any) => Promise<T>;
   update: (id: string, data: Partial<EntityInput<T>>) => Promise<T>;
+  bulkUpdate: (updates: { id: string, data: Partial<EntityInput<T>> }[]) => Promise<T[]>;
   delete: (id: string) => Promise<{ id: string }>;
 };
 
@@ -105,6 +106,30 @@ const createEntityStore = <T extends { id: string } & Record<string, unknown>>(
     items[index] = next;
     writeCollection(storageKey, items);
     return next;
+  },
+
+  async bulkUpdate(updates) {
+    await delay();
+    const items = readCollection<T>(storageKey);
+    const results: T[] = [];
+    const now = new Date().toISOString();
+
+    updates.forEach(({ id, data }) => {
+      const index = items.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const next = {
+          ...items[index],
+          ...data,
+          id,
+          updated_date: now,
+        } as T;
+        items[index] = next;
+        results.push(next);
+      }
+    });
+
+    writeCollection(storageKey, items);
+    return results;
   },
 
   async delete(id) {

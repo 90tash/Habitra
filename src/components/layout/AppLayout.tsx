@@ -5,7 +5,7 @@ import BottomNav from './BottomNav';
 
 export default function AppLayout() {
   return (
-    <div className="min-h-screen bg-background max-w-lg mx-auto relative">
+    <div className="min-h-screen bg-background max-w-lg mx-auto">
       <main>
         <Outlet />
       </main>

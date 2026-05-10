@@ -13,9 +13,9 @@ export const HabitRepository = {
   update: (id: string, data: Partial<HabitInput>) => LocalDataStore.Habit.update(id, data),
   reorder: async (ids: string[]) => {
     // Bulk update sort orders
-    await Promise.all(ids.map((id, index) => 
-      LocalDataStore.Habit.update(id, { sort_order: index })
-    ));
+    await LocalDataStore.Habit.bulkUpdate(
+      ids.map((id, index) => ({ id, data: { sort_order: index } }))
+    );
     return { success: true };
   },
   delete: async (id: string) => {
