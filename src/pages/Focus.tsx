@@ -4,7 +4,7 @@ import { Play, Pause, RotateCcw, SkipForward, Settings2, Target, History, Globe 
 import { Button } from '@/components/ui/button';
 import ProgressRing from '@/components/habits/ProgressRing';
 
-import { format, getDaysInMonth } from 'date-fns';
+import { getDaysInMonth } from 'date-fns';
 
 function ProgressBar({ label, current, target, unit, color }: { label: string, current: number, target: number, unit: string, color: string }) {
   const percent = Math.min((current / target) * 100, 100);

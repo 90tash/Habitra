@@ -11,7 +11,6 @@ import {
   useMidnightScheduler,
   saveMidnightSession,
   getMidnightSession,
-  isMidnightSessionDismissedToday,
 } from '@/lib/useMidnightScheduler';
 import type { Habit, DailyLog } from '@/lib/types';
 

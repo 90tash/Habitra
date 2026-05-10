@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, X } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_ICONS } from '@/lib/habitUtils';
 import { Button } from '@/components/ui/button';
 import {

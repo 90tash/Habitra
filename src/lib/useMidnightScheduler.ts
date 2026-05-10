@@ -13,17 +13,27 @@ import Midnight from './midnightPlugin';
 
 const STORAGE_KEY = 'habitra-midnight-session';
 
-export function getMidnightSession() {
+export type MidnightSession = {
+  lastPromptedDate?: string;
+  dismissed?: boolean;
+  completedCount?: number;
+  snoozed?: boolean;
+  triggeredAt?: string;
+  isCatchUp?: boolean;
+  lastUpdate?: string;
+};
+
+export function getMidnightSession(): MidnightSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    return JSON.parse(raw) as MidnightSession;
   } catch {
     return null;
   }
 }
 
-export function saveMidnightSession(data: any) {
+export function saveMidnightSession(data: Partial<MidnightSession>) {
   const current = getMidnightSession() || {};
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     ...current,
@@ -42,6 +52,11 @@ export function clearMidnightSession() {
 export function hasPromptedForDate(dateStr: string) {
   const session = getMidnightSession();
   return session?.lastPromptedDate === dateStr;
+}
+
+export function isMidnightSessionDismissedToday(dateStr: string) {
+  const session = getMidnightSession();
+  return session?.lastPromptedDate === dateStr && session.dismissed === true;
 }
 
 interface UseMidnightSchedulerProps {
@@ -102,7 +117,7 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
 
       // Case 2: "Catch-up" Mode
       // Trigger catch-up if we haven't prompted for yesterday yet and it's 5 hours past the day end time
-      let catchUpHour = (endH + 5) % 24;
+      const catchUpHour = (endH + 5) % 24;
       if (h === catchUpHour && !isFirstDay && session?.lastPromptedDate !== yesterdayStr) {
         saveMidnightSession({ lastPromptedDate: yesterdayStr, isCatchUp: true });
         trigger(yesterdayStr);
