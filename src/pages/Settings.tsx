@@ -1,5 +1,4 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +7,6 @@ import {
   ChevronRight, Camera, X, Clock, User, Heart, 
   AlertCircle, Image as ImageIcon, Trash, Plus, Tag 
 } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from '@hello-pangea/dnd';
 
 import { Button } from '@/components/ui/button';
 import { useTheme, ACCENT_COLORS, THEMES } from '@/lib/useTheme';
@@ -143,127 +141,130 @@ function TagCarousel({ tags = [] }: { tags: string[] }) {
   );
 }
 
-function HabitReorderList({ habits, onEdit, onDelete, onReorder, onDragStart, onDragEnd, accentColor }: any) {
+function HabitReorderList({ habits, onEdit, onDelete, onReorder, accentColor }: any) {
   const [itemHeight, setItemHeight] = useState(65);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // High-frequency pointer tracking (Always Synchronous)
-  const lastPointerY = useRef(0);
-  useEffect(() => {
-    const track = (e: MouseEvent | TouchEvent) => {
-      lastPointerY.current = e instanceof TouchEvent ? e.touches[0].clientY : e.clientY;
-    };
-    // Use capture phase to beat the library to the touch point
-    window.addEventListener('mousemove', track, { capture: true, passive: true });
-    window.addEventListener('touchmove', track, { capture: true, passive: true });
-    window.addEventListener('mousedown', track, { capture: true, passive: true });
-    window.addEventListener('touchstart', track, { capture: true, passive: true });
-    
-    return () => {
-      window.removeEventListener('mousemove', track, { capture: true });
-      window.removeEventListener('touchmove', track, { capture: true });
-      window.removeEventListener('mousedown', track, { capture: true });
-      window.removeEventListener('touchstart', track, { capture: true });
-    };
-  }, []);
-
-  const [dragStartInfo, setDragStartInfo] = useState<{
-    startItemTop: number;
-    startPointerY: number;
+  const [orderedHabits, setOrderedHabits] = useState<any[]>(habits);
+  const [dragState, setDragState] = useState<{
+    id: string;
+    pointerOffsetY: number;
+    pointerY: number;
+    bounds: DOMRect;
   } | null>(null);
-
-  const [ticker, setTicker] = useState(0); // Trigger re-renders during drag
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!dragStartInfo) return;
-    let frame: number;
-    const update = () => {
-      setTicker(t => t + 1);
-      frame = requestAnimationFrame(update);
+    if (!dragState) setOrderedHabits(habits);
+  }, [habits, dragState]);
+
+  useEffect(() => {
+    if (!dragState || typeof window === 'undefined') return;
+
+    const preventScroll = (event: Event) => event.preventDefault();
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('wheel', preventScroll, { passive: false });
+
+    return () => {
+      window.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('wheel', preventScroll);
     };
-    frame = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(frame);
-  }, [dragStartInfo]);
+  }, [dragState]);
 
   useEffect(() => {
     if (containerRef.current) {
-      const item = containerRef.current.querySelector('[data-rbd-draggable-id]');
+      const item = containerRef.current.querySelector('[data-habit-row]');
       if (item) setItemHeight((item as HTMLElement).offsetHeight);
     }
   }, [habits]);
 
-  const handleDragStart = (start: DragStart) => {
-    const element = document.querySelector(`[data-rbd-draggable-id="${start.draggableId}"]`);
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      // Lock start info exactly at drag initiation
-      setDragStartInfo({
-        startItemTop: rect.top,
-        startPointerY: lastPointerY.current || rect.top + (rect.height / 2),
-      });
-      onDragStart?.();
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+
+  const reorderById = (items: any[], id: string, destinationIndex: number) => {
+    const sourceIndex = items.findIndex(item => item.id === id);
+    if (sourceIndex === -1 || sourceIndex === destinationIndex) return items;
+    const next = [...items];
+    const [item] = next.splice(sourceIndex, 1);
+    next.splice(destinationIndex, 0, item);
+    return next;
+  };
+
+  const getClampedTop = (state: typeof dragState) => {
+    if (!state) return 0;
+    const rawTop = state.pointerY - state.pointerOffsetY;
+    return clamp(rawTop, state.bounds.top, state.bounds.bottom - itemHeight);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, habit: any) => {
+    const row = event.currentTarget.closest('[data-habit-row]') as HTMLElement | null;
+    if (!row || !containerRef.current) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const rect = row.getBoundingClientRect();
+    const bounds = containerRef.current.getBoundingClientRect();
+    setItemHeight(rect.height);
+    setOrderedHabits(habits);
+    setDragState({
+      id: habit.id,
+      pointerOffsetY: event.clientY - rect.top,
+      pointerY: event.clientY,
+      bounds,
+    });
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState) return;
+
+    event.preventDefault();
+    const pointerY = clamp(event.clientY, dragState.bounds.top, dragState.bounds.bottom);
+    const nextState = { ...dragState, pointerY };
+    const top = getClampedTop(nextState);
+    const centerY = top + itemHeight / 2 - dragState.bounds.top;
+    const destinationIndex = clamp(Math.floor(centerY / itemHeight), 0, orderedHabits.length - 1);
+
+    setDragState(nextState);
+    setOrderedHabits(items => reorderById(items, dragState.id, destinationIndex));
+  };
+
+  const handlePointerUp = () => {
+    if (!dragState) return;
+
+    const reorderedIds = orderedHabits.map(habit => habit.id);
+    const originalIds = habits.map((habit: any) => habit.id);
+    setDragState(null);
+    if (reorderedIds.some((id, index) => id !== originalIds[index])) {
+      onReorder(reorderedIds);
     }
   };
 
-  const handleDragEnd = (result: DropResult) => {
-    setDragStartInfo(null);
-    onDragEnd?.();
-    if (!result.destination || result.destination.index === result.source.index) return;
-    const items = Array.from(habits);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    onReorder(items.map((h: any) => h.id));
-  };
-
-  const renderHabitItem = (habit: any, index: number, provided: any, snapshot: any) => {
-    let style = { ...provided.draggableProps.style };
-    
-    // Robust Delta-Based Movement & Clamping
-    if (snapshot.isDragging && containerRef.current && dragStartInfo) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      
-      // Strict signed delta calculation: DOWN (larger currentY) = Positive Delta
-      const deltaY = lastPointerY.current - dragStartInfo.startPointerY;
-      const rawTop = dragStartInfo.startItemTop + deltaY;
-      
-      // Physical stop at container edges
-      const clampedTop = Math.max(
-        containerRect.top,
-        Math.min(rawTop, containerRect.bottom - itemHeight)
-      );
-
-      style = {
-        ...style,
-        position: 'fixed',
-        top: `${clampedTop}px`,
-        left: `${containerRect.left}px`,
-        width: `${containerRect.width}px`,
-        zIndex: 9999,
-        // Reset library translation, use absolute positioning + scale
-        transform: 'scale(1.03)', 
-        transition: snapshot.isDropAnimating ? 'all 0.2s cubic-bezier(0.2, 0, 0, 1)' : 'none',
-        backgroundColor: `${accentColor}24`, 
-        borderColor: `${accentColor}66`,
-        boxShadow: `0 12px 30px ${accentColor}33`,
-        backdropFilter: 'blur(16px)',
-      };
-    }
+  const renderHabitItem = (habit: any, isDragging = false) => {
+    const style = isDragging
+      ? {
+          backgroundColor: `${accentColor}24`,
+          borderColor: `${accentColor}66`,
+          boxShadow: `0 12px 30px ${accentColor}33`,
+          backdropFilter: 'blur(16px)',
+        }
+      : undefined;
 
     return (
       <div
-        ref={provided.innerRef}
-        {...provided.draggableProps}
-        {...provided.dragHandleProps}
+        data-habit-row
         style={style}
         className={`flex items-center gap-3 px-4 py-3 border-t border-border/30 first:border-t-0 ${
-          snapshot.isDragging 
+          isDragging 
             ? 'rounded-xl border border-solid shadow-2xl' 
             : 'hover:bg-muted/30 transition-colors'
         }`}
       >
-        <div className="shrink-0 p-1 -ml-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing">
+        <button
+          type="button"
+          onPointerDown={(event) => handlePointerDown(event, habit)}
+          className="shrink-0 p-1 -ml-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing touch-none"
+          aria-label={`Reorder ${habit.title}`}
+        >
           <GripVertical className="h-4 w-4" />
-        </div>
+        </button>
         <span className="text-xl shrink-0">{habit.icon || '🎯'}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate text-foreground">{habit.title}</p>
@@ -274,7 +275,7 @@ function HabitReorderList({ habits, onEdit, onDelete, onReorder, onDragStart, on
             )}
           </div>
         </div>
-        {!snapshot.isDragging && (
+        {!isDragging && (
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0"
               onClick={() => onEdit(habit)}>
@@ -304,43 +305,42 @@ function HabitReorderList({ habits, onEdit, onDelete, onReorder, onDragStart, on
     );
   };
 
+  const activeHabit = dragState ? orderedHabits.find(habit => habit.id === dragState.id) : null;
+  const activeTop = dragState ? getClampedTop(dragState) - dragState.bounds.top : 0;
+
   return (
-    <div className="glass rounded-2xl card-shadow border border-border/40 overflow-visible relative">
+    <div className="glass rounded-2xl card-shadow border border-border/40 overflow-hidden relative">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Manage Habits</p>
       </div>
       
-      <div ref={containerRef} className="relative">
-        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <Droppable 
-            droppableId="habits"
-            renderClone={(provided, snapshot, rubric) => (
-              createPortal(
-                renderHabitItem(habits[rubric.source.index], rubric.source.index, provided, snapshot),
-                document.body
-              )
-            )}
+      <div
+        ref={containerRef}
+        className={`relative overflow-hidden ${dragState ? 'touch-none' : ''}`}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div className="flex flex-col min-h-[50px] relative">
+          {orderedHabits.map((habit: any) => (
+            <div key={habit.id} className={dragState?.id === habit.id ? 'opacity-0' : ''}>
+              {renderHabitItem(habit)}
+            </div>
+          ))}
+        </div>
+        {dragState && activeHabit && (
+          <div
+            className="absolute left-0 right-0 z-20 pointer-events-none"
+            style={{
+              top: activeTop,
+              height: itemHeight,
+              transform: 'scale(1.03)',
+              transformOrigin: 'center',
+            }}
           >
-            {(provided) => (
-              <div 
-                {...provided.droppableProps} 
-                ref={provided.innerRef} 
-                className="flex flex-col min-h-[50px] relative"
-              >
-                {habits.map((habit: any, i: number) => (
-                  <Draggable key={habit.id} draggableId={habit.id} index={i}>
-                    {(provided, snapshot) => (
-                      <div className={snapshot.isDragging ? 'opacity-0' : ''}>
-                        {renderHabitItem(habit, i, provided, snapshot)}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+            {renderHabitItem(activeHabit, true)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -351,7 +351,6 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [editHabit, setEditHabit] = useState<Habit | null>(null);
-  const [isReordering, setIsReordering] = useState(false);
 
   const { data: habits = [] } = useQuery<Habit[]>({ 
     queryKey: ['habits'], 
@@ -441,7 +440,7 @@ export default function Settings() {
     <motion.div 
       variants={pageVariants} 
       initial="initial" 
-      animate={isReordering ? { y: 0, opacity: 1 } : "animate"}
+      animate="animate"
       className="px-4 pt-6 pb-28 space-y-5"
     >
       <motion.div variants={itemVariants}>
@@ -597,8 +596,6 @@ export default function Settings() {
           onEdit={setEditHabit}
           onDelete={(id: string) => deleteHabitMutation.mutate(id)}
           onReorder={(ids: string[]) => reorderHabitsMutation.mutate(ids)}
-          onDragStart={() => setIsReordering(true)}
-          onDragEnd={() => setIsReordering(false)}
           accentColor={ACCENT_COLORS[accentIdx].hex}
         />
       </motion.div>
