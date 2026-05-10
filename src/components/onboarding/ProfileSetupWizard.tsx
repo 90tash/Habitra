@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Camera, X, Check, Clock, User } from 'lucide-react';
+import { ChevronRight, Camera, Check, Clock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ACCENT_COLORS, useTheme } from '@/lib/useTheme';
 import { appStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
-import Midnight from '@/lib/midnightPlugin';
 import { Capacitor } from '@capacitor/core';
 import type { LocalUser, UserPreferences } from '@/lib/types';
+import ReminderPermissionsPanel from './ReminderPermissionsPanel';
 
 interface ProfileSetupWizardProps {
   onComplete: () => void;
@@ -33,7 +33,6 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [dayEndTime, setDayEndTime] = useState('00:00');
-  const [hasOverlayPermission, setHasOverlayPermission] = useState(true);
 
   // Time Picker Local State
   const [selectedH, setSelectedH] = useState(12);
@@ -50,21 +49,6 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
     const timeStr = `${String(h).padStart(2, '0')}:${selectedM}`;
     setDayEndTime(timeStr);
   }, [selectedH, selectedM, selectedP]);
-
-  useEffect(() => {
-    if (Capacitor.getPlatform() === 'android') {
-      Midnight.checkOverlayPermission().then(res => setHasOverlayPermission(res.granted));
-    }
-  }, [step]);
-
-  const requestPermission = async () => {
-    if (Capacitor.getPlatform() === 'android') {
-      await Midnight.requestOverlayPermission();
-      setTimeout(() => {
-        Midnight.checkOverlayPermission().then(res => setHasOverlayPermission(res.granted));
-      }, 1000);
-    }
-  };
 
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -373,22 +357,7 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
                 </div>
               </div>
 
-              {Capacitor.getPlatform() === 'android' && !hasOverlayPermission && (
-                <div className="bg-orange-500/5 border border-orange-500/20 rounded-[24px] p-5 space-y-4 shadow-lg backdrop-blur-sm">
-                  <div className="flex items-center gap-3 text-orange-400">
-                    <div className="h-8 w-8 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                      <X className="h-5 w-5" />
-                    </div>
-                    <p className="text-sm font-bold">Permission Recommended</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground/80 leading-relaxed">
-                    To show the habit check-in over your lock screen at your chosen day-end time, please enable "Display over other apps".
-                  </p>
-                  <Button onClick={requestPermission} variant="outline" className="w-full h-11 rounded-xl border-orange-500/30 text-orange-400 hover:bg-orange-500/10 active:scale-95 transition-all text-xs font-bold">
-                    Enable in Settings
-                  </Button>
-                </div>
-              )}
+              {Capacitor.getPlatform() === 'android' && <ReminderPermissionsPanel />}
             </motion.div>
           )}
         </AnimatePresence>

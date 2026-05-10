@@ -16,12 +16,15 @@ import EditProfile from '@/pages/EditProfile';
 import HabitDetails from '@/pages/HabitDetails';
 import SplashScreen from '@/pages/SplashScreen';
 import Onboarding from '@/pages/Onboarding';
+import FirstLaunchPermissions from '@/components/onboarding/FirstLaunchPermissions';
 import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
-import { isOnboardingComplete } from '@/lib/onboarding';
+import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
 import { appStore } from '@/store/appStore';
+import { Capacitor } from '@capacitor/core';
 
 const AuthenticatedApp = () => {
-  const [currentStep, setCurrentStep] = useState<'splash' | 'onboarding' | 'profile' | 'ready'>('splash');
+  const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
+  const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
 
   const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
     const identity = appStore.getIdentity();
@@ -42,9 +45,23 @@ const AuthenticatedApp = () => {
     return 'ready';
   };
 
-  const handleSplashDone = () => setCurrentStep(checkNextStep('splash'));
+  const handleSplashDone = () => {
+    if (shouldShowFirstLaunchPermissions) {
+      setCurrentStep('permissions');
+      return;
+    }
+    setCurrentStep(checkNextStep('splash'));
+  };
   const handleOnboardingComplete = () => setCurrentStep(checkNextStep('onboarding'));
   const handleProfileSetupComplete = () => setCurrentStep('ready');
+  const handlePermissionsContinue = () => {
+    markFirstLaunchPermissionsSeen();
+    setCurrentStep(checkNextStep('splash'));
+  };
+
+  if (currentStep === 'permissions') {
+    return <FirstLaunchPermissions onContinue={handlePermissionsContinue} />;
+  }
 
   if (currentStep === 'splash') {
     return (
