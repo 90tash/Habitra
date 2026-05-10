@@ -6,14 +6,13 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, Tooltip
 } from 'recharts';
 import { 
-  format, subDays, startOfWeek, eachDayOfInterval, endOfWeek, 
+  format, startOfWeek, eachDayOfInterval, endOfWeek, 
   startOfMonth, endOfMonth, isSameMonth, isSameDay, isToday, 
   addMonths, subMonths 
 } from 'date-fns';
-import { 
-  Target, Flame, TrendingUp, Zap, ChevronLeft, ChevronRight, 
+import { Flame, TrendingUp, Zap, ChevronLeft, ChevronRight, 
   CheckCircle2, Circle, LayoutGrid, Calendar as CalendarIcon, 
-  Sprout, Trophy, Info, HelpCircle
+  Sprout, Trophy, HelpCircle
 } from 'lucide-react';
 import { computeTotalXP, calcConsistencyScore, evaluateBadges, getLevelForXP, BADGES } from '@/lib/gamification';
 import XPBar from '@/components/gamification/XPBar';
