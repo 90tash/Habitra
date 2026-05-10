@@ -26,6 +26,7 @@ Use these principles for every UI decision:
 
 ## UI And Design System Rules
 
+- Treat `docs/DESIGN_SYSTEM.md` as mandatory. If a UI decision conflicts with that document, follow the design system strictly like a devotee. If a change is superly needed in design system else you can't proceed, which must be very rare, then inform the user that you are deviating from design system and update the design system accordingly.
 - Reuse primitives from `src/components/ui` before creating new base controls.
 - Use Tailwind semantic tokens from `src/index.css` and `tailwind.config.js`: `background`, `foreground`, `card`, `primary`, `accent`, `muted`, `border`, `destructive`, and chart tokens.
 - Use `lucide-react` icons for standard actions and states.
