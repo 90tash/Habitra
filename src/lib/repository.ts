@@ -56,6 +56,11 @@ export const LogRepository = {
 };
 
 export const UserRepository = {
-  me: async (): Promise<LocalUser> => ({ id: 'local-user', full_name: 'Local User', email: 'local@habitra.app' }),
+  me: async (): Promise<LocalUser> => ({
+    id: 'local-user',
+    full_name: 'Local User',
+    email: 'local@habitra.app',
+    accentColor: '#7C5CFC',
+  }),
   updateProfile: async (data: Partial<LocalUser>) => data,
 };

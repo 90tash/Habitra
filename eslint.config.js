@@ -3,17 +3,25 @@ import pluginJs from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
+import tseslint from "typescript-eslint";
 
-export default [
+export default tseslint.config(
   {
-    files: [
-      "src/components/**/*.{js,mjs,cjs,jsx}",
-      "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
+    ignores: [
+      "android/**/build/**",
+      "dist/**",
+      "dist-ssr/**",
+      "node_modules/**",
+      ".npm-cache/**",
     ],
-    ignores: ["src/lib/**/*", "src/components/ui/**/*"],
-    ...pluginJs.configs.recommended,
-    ...pluginReact.configs.flat.recommended,
+  },
+  {
+    files: ["src/**/*.{ts,tsx,js,jsx}"],
+    extends: [
+      pluginJs.configs.recommended,
+      ...tseslint.configs.recommended,
+      pluginReact.configs.flat.recommended,
+    ],
     languageOptions: {
       globals: globals.browser,
       parserOptions: {
@@ -30,15 +38,19 @@ export default [
       },
     },
     plugins: {
-      react: pluginReact,
       "react-hooks": pluginReactHooks,
       "unused-imports": pluginUnusedImports,
     },
     rules: {
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
       "no-unused-vars": "off",
+      "react/no-unescaped-entities": "off",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
-      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-imports": "warn",
       "unused-imports/no-unused-vars": [
         "warn",
         {
@@ -57,4 +69,4 @@ export default [
       "react-hooks/rules-of-hooks": "error",
     },
   },
-];
+);

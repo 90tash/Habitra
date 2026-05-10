@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   Pencil, 
@@ -22,7 +22,6 @@ import {
   startOfMonth, 
   endOfMonth, 
   eachDayOfInterval, 
-  isSameDay, 
   subMonths, 
   addMonths,
   startOfWeek,
@@ -31,10 +30,7 @@ import {
   isFuture
 } from 'date-fns';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
-  YAxis, 
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer,
@@ -44,7 +40,6 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { HabitRepository, LogRepository } from '@/lib/repository';
-import { Habit, DailyLog } from '@/lib/types';
 import { 
   AlertDialog, 
   AlertDialogAction, 

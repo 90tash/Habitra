@@ -4,9 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Trash2, Pencil, Moon, Sun, Zap, GripVertical, 
-  ChevronRight, Camera, X, Clock, User, Heart, 
-  AlertCircle, Image as ImageIcon, Trash, Plus, Tag 
+  Trash2, Pencil, Moon, Sun, Zap, GripVertical, Clock, User, Heart, 
+  AlertCircle 
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from '@hello-pangea/dnd';
 
@@ -19,14 +18,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
 import { 
-  computeTotalXP, evaluateBadges, getLevelForXP, 
+  computeTotalXP, getLevelForXP, 
   getLevelProgress, getNextLevel 
 } from '@/lib/gamification';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 import { appStore } from '@/store/appStore';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import type { Habit, DailyLog } from '@/lib/types';
 
 const THEME_ICONS: Record<string, any> = { light: Sun, dark: Moon, amoled: Zap };
