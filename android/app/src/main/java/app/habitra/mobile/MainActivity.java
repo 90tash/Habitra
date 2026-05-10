@@ -8,6 +8,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(MidnightPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Allow activity to be shown over the lock screen
@@ -22,7 +23,5 @@ public class MainActivity extends BridgeActivity {
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
             );
         }
-        
-        registerPlugin(MidnightPlugin.class);
     }
 }

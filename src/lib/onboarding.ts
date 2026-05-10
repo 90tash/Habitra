@@ -4,6 +4,7 @@
  */
 
 const KEY = 'hp_onboarding_v2';
+const FIRST_LAUNCH_PERMISSIONS_KEY = 'hp_first_launch_permissions_v1';
 
 export function isOnboardingComplete() {
   try { return localStorage.getItem(KEY) === 'done'; }
@@ -17,6 +18,16 @@ export function markOnboardingComplete() {
 
 export function resetOnboarding() {
   try { localStorage.removeItem(KEY); }
+  catch {}
+}
+
+export function hasSeenFirstLaunchPermissions() {
+  try { return localStorage.getItem(FIRST_LAUNCH_PERMISSIONS_KEY) === 'done'; }
+  catch { return true; }
+}
+
+export function markFirstLaunchPermissionsSeen() {
+  try { localStorage.setItem(FIRST_LAUNCH_PERMISSIONS_KEY, 'done'); }
   catch {}
 }
 
