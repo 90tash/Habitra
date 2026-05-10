@@ -69,10 +69,10 @@ export type LocalUser = {
   created_at?: string;
 };
 
-export type UserPreferences = {
-  dayEndTime: string; // e.g. "00:00"
+export interface UserPreferences {
+  dailyReviewTime: string; // e.g. "00:00"
   onboardingCompleted: boolean;
-};
+}
 
 export type AuthError = {
   type: 'user_not_registered' | 'auth_required' | 'server_error';

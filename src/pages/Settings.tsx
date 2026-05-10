@@ -574,18 +574,17 @@ export default function Settings() {
               <Clock className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">Day Ends At</p>
-              <p className="text-[10px] text-muted-foreground">When daily cycles reset</p>
+              <p className="text-sm font-medium text-foreground">Review Reminder</p>
+              <p className="text-[10px] text-muted-foreground">Daily check-in notification</p>
             </div>
           </div>
-          
-          <TimePicker3 
-            value={preferences.dayEndTime} 
-            onChange={(val) => updatePreferences({ dayEndTime: val })} 
+
+          <TimePicker3
+            value={preferences.dailyReviewTime}
+            onChange={(val) => updatePreferences({ dailyReviewTime: val })}
           />
         </div>
       </motion.div>
-
       <motion.div variants={itemVariants}>
         <HabitReorderList 
           habits={habits} 

@@ -26,7 +26,7 @@ const DEFAULT_IDENTITY: LocalUser = {
 };
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  dayEndTime: '00:00',
+  dailyReviewTime: '22:00',
   onboardingCompleted: false,
 };
 

@@ -32,22 +32,22 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
   // Form State
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [dayEndTime, setDayEndTime] = useState('00:00');
+  const [dailyReviewTime, setDailyReviewTime] = useState('22:00');
 
   // Time Picker Local State
-  const [selectedH, setSelectedH] = useState(12);
+  const [selectedH, setSelectedH] = useState(10);
   const [selectedM, setSelectedM] = useState('00');
-  const [selectedP, setSelectedP] = useState<'AM' | 'PM'>('AM');
+  const [selectedP, setSelectedP] = useState<'AM' | 'PM'>('PM');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync internal picker state to dayEndTime string
+  // Sync internal picker state to dailyReviewTime string
   useEffect(() => {
     let h = selectedH;
     if (selectedP === 'PM' && h < 12) h += 12;
     if (selectedP === 'AM' && h === 12) h = 0;
     const timeStr = `${String(h).padStart(2, '0')}:${selectedM}`;
-    setDayEndTime(timeStr);
+    setDailyReviewTime(timeStr);
   }, [selectedH, selectedM, selectedP]);
 
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,7 +70,7 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
     };
     
     const preferences: UserPreferences = {
-      dayEndTime,
+      dailyReviewTime,
       onboardingCompleted: true,
     };
     
@@ -221,8 +221,8 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
               className="space-y-8"
             >
               <div>
-                <h1 className="text-3xl font-bold font-space gradient-text">When does your day end?</h1>
-                <p className="text-muted-foreground mt-2">Choose the time you usually go to sleep.</p>
+                <h1 className="text-3xl font-bold font-space gradient-text">Daily Review Time</h1>
+                <p className="text-muted-foreground mt-2">When should we remind you to check your habits?</p>
               </div>
 
               {/* Custom Wheel Time Picker Card */}
@@ -232,8 +232,8 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
                     <Clock className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Custom Day Cycle</p>
-                    <p className="text-xs text-muted-foreground opacity-60 font-medium">This defines when habits reset and streaks update.</p>
+                    <p className="text-sm font-semibold">Review Reminder</p>
+                    <p className="text-xs text-muted-foreground opacity-60 font-medium">Get a notification to log your daily progress.</p>
                   </div>
                 </div>
 
@@ -346,7 +346,7 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
 
                   <div className="mt-10 grid grid-cols-2 w-full gap-4">
                     <div className="bg-background/40 backdrop-blur-md rounded-3xl p-5 border border-white/5 shadow-inner">
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2 opacity-60">Day Ends At</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2 opacity-60">Review Time</p>
                       <p className="text-2xl font-bold font-space text-primary">{formatDisplayTime()}</p>
                     </div>
                     <div className="bg-background/40 backdrop-blur-md rounded-3xl p-5 border border-white/5 shadow-inner">
