@@ -60,16 +60,6 @@ export default function FirstLaunchPermissions({ onContinue }: FirstLaunchPermis
 
         <Button
           type="button"
-          variant="outline"
-          disabled={requestingNotification}
-          onClick={requestNativeNotificationPermission}
-          className="h-12 rounded-[18px] border-primary/30 text-primary font-bold"
-        >
-          {requestingNotification ? 'Opening notification prompt...' : 'Show notification permission popup'}
-        </Button>
-
-        <Button
-          type="button"
           onClick={onContinue}
           className="h-14 rounded-[20px] text-base font-bold shadow-xl shadow-primary/20 gap-2"
           style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
