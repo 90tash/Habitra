@@ -20,13 +20,59 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.Calendar;
 
+import android.os.Vibrator;
+import android.os.VibrationEffect;
+
 @CapacitorPlugin(name = "Midnight")
 public class MidnightPlugin extends Plugin {
     private static final int POST_NOTIFICATIONS_REQUEST_CODE = 4101;
 
     @PluginMethod
+    public void stopVibration(PluginCall call) {
+        Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+        if (v != null) {
+            v.cancel();
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void dismiss(PluginCall call) {
+        NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.cancel(1001); // The ID used in MidnightReceiver
+        }
+        // Also stop any running vibration
+        Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+        if (v != null) v.cancel();
+        
+        // Reset cycle count
+        getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("alarm_cycle_count", 0)
+            .apply();
+
+        call.resolve();
+    }
+
+    @PluginMethod
     public void schedule(PluginCall call) {
-        boolean exact = scheduleAlarm(getContext());
+        Integer hour = call.getInt("hour");
+        Integer minute = call.getInt("minute");
+
+        if (hour == null || minute == null) {
+            call.reject("Hour and minute are required");
+            return;
+        }
+
+        // Save for reboot persistence
+        getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("review_hour", hour)
+            .putInt("review_minute", minute)
+            .apply();
+
+        boolean exact = scheduleAlarm(getContext(), hour, minute);
         JSObject ret = new JSObject();
         ret.put("exact", exact);
         call.resolve(ret);
@@ -131,7 +177,7 @@ public class MidnightPlugin extends Plugin {
         return Settings.canDrawOverlays(context);
     }
 
-    public static boolean scheduleAlarm(Context context) {
+    public static boolean scheduleAlarm(Context context, int hour, int minute) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return false;
 
@@ -144,12 +190,12 @@ public class MidnightPlugin extends Plugin {
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
 
-        // If it's already past midnight, schedule for tomorrow.
+        // If it's already past the time today, schedule for tomorrow.
         if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_YEAR, 1);
         }

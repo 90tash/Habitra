@@ -100,6 +100,12 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
     const alreadyDone = logs.filter(l => l.is_completed).length;
     const totalDone = completedNow + alreadyDone;
     saveMidnightSession({ lastPromptedDate: date, dismissed: true, completedCount: totalDone });
+    
+    // Clear native notification
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.dismiss().catch(() => {});
+    }
+
     setSaving(false);
     setPhase('result');
   };
@@ -120,6 +126,11 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
     setVisible(false);
     saveMidnightSession({ lastPromptedDate: date, dismissed: false, snoozed: true });
 
+    // Clear native notification on snooze
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.dismiss().catch(() => {});
+    }
+
     let remaining = SNOOZE_MINUTES * 60;
     setSnoozeCountdown(remaining);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -137,6 +148,12 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
 
   const handleDismiss = () => {
     saveMidnightSession({ lastPromptedDate: date, dismissed: true });
+    
+    // Clear native notification
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.dismiss().catch(() => {});
+    }
+
     setVisible(false);
     if (countdownRef.current) clearInterval(countdownRef.current);
     setSnoozeCountdown(null);
