@@ -28,6 +28,8 @@ const DEFAULT_IDENTITY: LocalUser = {
 const DEFAULT_PREFERENCES: UserPreferences = {
   dailyReviewTime: '22:00',
   onboardingCompleted: false,
+  remindersEnabled: true,
+  reminderMethod: 'nag',
 };
 
 const readJson = <T>(key: string, fallback: T): T => {

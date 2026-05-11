@@ -37,11 +37,46 @@ public class MidnightPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void cancel(PluginCall call) {
+        AlarmManager alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager != null) {
+            Intent intent = new Intent(getContext(), MidnightReceiver.class);
+            intent.setAction(MidnightReceiver.ACTION_ALARM);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                getContext(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            alarmManager.cancel(pendingIntent);
+            
+            // Also cancel the 6 AM fallback
+            Intent fallbackIntent = new Intent(getContext(), MidnightReceiver.class);
+            fallbackIntent.setAction(MidnightReceiver.ACTION_SILENT_6AM);
+            PendingIntent fallbackPI = PendingIntent.getBroadcast(
+                getContext(), 4, fallbackIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            alarmManager.cancel(fallbackPI);
+        }
+        
+        // Clear preferences
+        getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
+            .edit()
+            .remove("review_hour")
+            .remove("review_minute")
+            .apply();
+
+        call.resolve();
+    }
+
+    @PluginMethod
     public void dismiss(PluginCall call) {
         NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
         if (notificationManager != null) {
-            notificationManager.cancel(1001); // The ID used in MidnightReceiver
+            notificationManager.cancel(1002); // Corrected to 1002 to match HabitReminderService
         }
+        
+        // Also stop the service explicitly to remove any floating bubbles
+        Intent serviceIntent = new Intent(getContext(), HabitReminderService.class);
+        getContext().stopService(serviceIntent);
+
         // Also stop any running vibration
         Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
         if (v != null) v.cancel();
@@ -59,17 +94,19 @@ public class MidnightPlugin extends Plugin {
     public void schedule(PluginCall call) {
         Integer hour = call.getInt("hour");
         Integer minute = call.getInt("minute");
+        String method = call.getString("reminderMethod", "nag"); // Default to nag
 
         if (hour == null || minute == null) {
             call.reject("Hour and minute are required");
             return;
         }
 
-        // Save for reboot persistence
+        // Save for reboot persistence and background retrieval
         getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
             .edit()
             .putInt("review_hour", hour)
             .putInt("review_minute", minute)
+            .putString("reminder_method", method)
             .apply();
 
         boolean exact = scheduleAlarm(getContext(), hour, minute);
