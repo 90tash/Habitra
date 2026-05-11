@@ -84,9 +84,12 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
   useEffect(() => {
     if (!enabled) return;
 
+    const preferences = appStore.getPreferences();
+    const [revH, revM] = (preferences.dailyReviewTime || '22:00').split(':').map(Number);
+
     // Schedule native alarm if on Android
     if (Capacitor.getPlatform() === 'android') {
-      Midnight.schedule().catch(err => console.error('Failed to schedule native midnight alarm:', err));
+      Midnight.schedule({ hour: revH, minute: revM }).catch(err => console.error('Failed to schedule native midnight alarm:', err));
     }
 
     const checkTime = () => {
