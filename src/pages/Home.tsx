@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Bell } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 import HabitCard from '@/components/habits/HabitCard';
 import DayProgress from '@/components/habits/DayProgress';
@@ -33,6 +34,7 @@ export default function Home() {
   const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
   const [midnightCheckDate, setMidnightCheckDate] = useState<string>(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const todayStr = getTodayStr();
   const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
@@ -144,6 +146,25 @@ export default function Home() {
   const bestStreak = useMemo(() => Math.max(...habits.map(h => h.best_streak || 0), 0), [habits]);
   const currentStreak = useMemo(() => Math.max(...habits.map(h => h.current_streak || 0), 0), [habits]);
 
+  const handleTrigger = (targetDate: string) => {
+    // Smart Priority Logic:
+    // If we trigger for Today, first check if Yesterday is done.
+    const today = getTodayStr();
+    if (targetDate === today) {
+      const yesterdayIncomplete = habits.some(h => {
+        const log = yesterdayLogs.find(l => l.habit_id === h.id);
+        return !log?.is_completed;
+      });
+
+      if (yesterdayIncomplete) {
+        setMidnightCheckDate(yesterdayStr);
+        return;
+      }
+    }
+    
+    setMidnightCheckDate(targetDate);
+  };
+
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate"
       className="px-4 pt-6 pb-28 space-y-4">
@@ -155,14 +176,23 @@ export default function Home() {
           <h1 className="text-3xl font-bold font-space mt-0.5 gradient-text">Habitra</h1>
           <p className="text-xs text-muted-foreground mt-1">{format(new Date(), 'EEEE, MMMM d')}</p>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}
-          onClick={handleAddHabit}
-          className="h-11 w-11 rounded-2xl flex items-center justify-center shadow-lg glow-primary transition-all"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
-          aria-label="Add habit">
-          <Plus className="h-5 w-5 text-white" />
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}
+            onClick={() => navigate('/notifications')}
+            className="h-11 w-11 rounded-2xl flex items-center justify-center bg-muted/40 border border-border/40 transition-all"
+            aria-label="Notifications">
+            <Bell className="h-5 w-5 text-muted-foreground" />
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}
+            onClick={handleAddHabit}
+            className="h-11 w-11 rounded-2xl flex items-center justify-center shadow-lg glow-primary transition-all"
+            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
+            aria-label="Add habit">
+            <Plus className="h-5 w-5 text-white" />
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Day Progress */}
@@ -228,6 +258,7 @@ export default function Home() {
 
 
       <MidnightPopup habits={habits} logs={checkLogs} date={midnightCheckDate}
+        onTrigger={handleTrigger}
         onSaveProgress={async (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean, targetDate: string) => {
           if (log) {
             await updateLogMutation.mutateAsync({ id: log.id, data: { current_value: value, is_completed: completed, completed_at: completed ? new Date().toISOString() : null } });

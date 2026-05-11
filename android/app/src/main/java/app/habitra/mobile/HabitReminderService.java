@@ -16,40 +16,90 @@ import android.os.Vibrator;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import android.graphics.PixelFormat;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.TextView;
+import android.provider.Settings;
+
+import android.app.KeyguardManager;
+import android.media.AudioAttributes;
+
 public class HabitReminderService extends Service {
     private static final String CHANNEL_ID = "habitra_ongoing_service_v1";
     private static final int NOTIFICATION_ID = 1002;
     private Vibrator vibrator;
     private Handler handler = new Handler();
     private PowerManager.WakeLock wakeLock;
+    private WindowManager windowManager;
+    private View floatingView;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            android.os.VibratorManager vibratorManager = (android.os.VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            vibrator = vibratorManager.getDefaultVibrator();
+        } else {
+            vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String title = intent.getStringExtra("title");
         boolean shouldVibrate = intent.getBooleanExtra("shouldVibrate", true);
+        String method = intent.getStringExtra("reminderMethod");
 
         createNotificationChannel();
         
+        // Log Now Action
         Intent logIntent = new Intent(this, MainActivity.class);
         logIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         logIntent.putExtra("isMidnightAlarm", true);
         PendingIntent logPI = PendingIntent.getActivity(this, 1, logIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+        // Snooze Action
+        Intent snoozeIntent = new Intent(this, MidnightReceiver.class);
+        snoozeIntent.setAction(MidnightReceiver.ACTION_SNOOZE);
+        PendingIntent snoozePI = PendingIntent.getBroadcast(this, 6, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        // Dismiss Action
+        Intent dismissIntent = new Intent(this, MidnightReceiver.class);
+        dismissIntent.setAction(MidnightReceiver.ACTION_DISMISS);
+        PendingIntent dismissPI = PendingIntent.getBroadcast(this, 7, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        // Intent for swipe detection (Nag Mode)
+        Intent swipeIntent = new Intent(this, MidnightReceiver.class);
+        swipeIntent.setAction(MidnightReceiver.ACTION_SWIPE);
+        PendingIntent swipePI = PendingIntent.getBroadcast(this, 5, swipeIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText("Time to check in your habits!")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(logPI)
+            .setAutoCancel(true)
             .addAction(android.R.drawable.ic_menu_edit, "Log Now", logPI)
-            .build();
+            .addAction(android.R.drawable.ic_menu_recent_history, "Snooze", snoozePI)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", dismissPI);
+
+        // If bubble is active, lower the notification priority so it doesn't "peek" 
+        // and cover the top of the screen (redundant with the bubble).
+        if ("bubble".equals(method)) {
+            builder.setPriority(NotificationCompat.PRIORITY_LOW);
+        } else {
+            builder.setPriority(NotificationCompat.PRIORITY_MAX);
+        }
+
+        if ("nag".equals(method)) {
+            builder.setDeleteIntent(swipePI);
+        }
+
+        Notification notification = builder.build();
 
         // Start as foreground but immediately stop-foreground-detach to make it swipable
         startForeground(NOTIFICATION_ID, notification);
@@ -59,23 +109,92 @@ public class HabitReminderService extends Service {
             stopForeground(false);
         }
 
+        if ("bubble".equals(method)) {
+            showFloatingBubble();
+        }
+
         if (shouldVibrate) {
             startLoopingVibration();
             acquireWakeLock();
-            // Auto-stop after 1 minute
-            handler.postDelayed(this::stopSelf, 60000);
+        } else {
+            if (vibrator != null) vibrator.cancel();
         }
 
         return START_NOT_STICKY;
     }
 
+    private void showFloatingBubble() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            return;
+        }
+
+        if (floatingView != null) return; // Already showing
+
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        if (windowManager == null) return;
+
+        int layoutType;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            layoutType = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+            PixelFormat.TRANSLUCENT
+        );
+
+        params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        params.y = 150;
+
+        LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        floatingView = inflater.inflate(getResources().getIdentifier("floating_reminder_layout", "layout", getPackageName()), null);
+
+        floatingView.setOnClickListener(v -> {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra("isMidnightAlarm", true);
+            startActivity(intent);
+            stopSelf();
+        });
+
+        windowManager.addView(floatingView, params);
+    }
+
     private void startLoopingVibration() {
-        if (vibrator != null) {
-            long[] pattern = {0, 1000, 1000};
+        if (vibrator != null && vibrator.hasVibrator()) {
+            vibrator.cancel();
+
+            KeyguardManager kgm = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            boolean isLocked = kgm != null && kgm.isKeyguardLocked();
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
+                VibrationEffect effect;
+                if (!isLocked) {
+                    // Short vibration (WhatsApp style) - Unlocked
+                    effect = VibrationEffect.createWaveform(new long[]{0, 200, 100, 200}, -1);
+                } else {
+                    // Persistent vibration (Alarm style) - Locked
+                    effect = VibrationEffect.createWaveform(new long[]{0, 800, 800}, 0);
+                }
+                
+                // Use Alarm attributes to break through "Do Not Disturb" if allowed
+                AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build();
+                
+                vibrator.vibrate(effect, audioAttributes);
             } else {
-                vibrator.vibrate(pattern, 0);
+                if (!isLocked) {
+                    vibrator.vibrate(new long[]{0, 200, 100, 200}, -1);
+                } else {
+                    vibrator.vibrate(new long[]{0, 800, 800}, 0);
+                }
             }
         }
     }
@@ -83,8 +202,9 @@ public class HabitReminderService extends Service {
     private void acquireWakeLock() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         if (pm != null) {
-            wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Habitra:ServiceWake");
-            wakeLock.acquire(10000);
+            // Increased duration to 30 seconds for better visibility
+            wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "Habitra:ServiceWake");
+            wakeLock.acquire(30000);
         }
     }
 
@@ -105,6 +225,9 @@ public class HabitReminderService extends Service {
     public void onDestroy() {
         if (vibrator != null) vibrator.cancel();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        if (windowManager != null && floatingView != null) {
+            windowManager.removeView(floatingView);
+        }
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }

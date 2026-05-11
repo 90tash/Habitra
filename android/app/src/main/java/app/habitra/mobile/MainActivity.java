@@ -2,6 +2,7 @@ package app.habitra.mobile;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.content.Intent;
 import android.view.WindowManager;
 import com.getcapacitor.BridgeActivity;
 
@@ -23,5 +24,11 @@ public class MainActivity extends BridgeActivity {
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
             );
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
     }
 }

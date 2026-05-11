@@ -72,6 +72,8 @@ export type LocalUser = {
 export interface UserPreferences {
   dailyReviewTime: string; // e.g. "00:00"
   onboardingCompleted: boolean;
+  remindersEnabled: boolean;
+  reminderMethod: 'nag' | 'bubble';
 }
 
 export type AuthError = {

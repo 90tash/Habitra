@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, CheckCheck, Bell, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { format, subDays } from 'date-fns';
 import Midnight from '@/lib/midnightPlugin';
 
 import MidnightHabitRow from './MidnightHabitRow';
@@ -21,25 +23,16 @@ interface MidnightPopupProps {
   habits: Habit[];
   logs: DailyLog[];
   date: string;
+  onTrigger: (date: string) => void;
   onSaveProgress: (habit: Habit, log: DailyLog | undefined, value: number, completed: boolean, date: string) => Promise<void>;
 }
 
-interface HabitChange {
-  habit: Habit;
-  log?: DailyLog;
-  update: {
-    value: number;
-    completed: boolean;
-    skipped: boolean;
-  };
-}
-
-export default function MidnightPopup({ habits, logs, date, onSaveProgress }: MidnightPopupProps) {
+export default function MidnightPopup({ habits, logs, date, onTrigger, onSaveProgress }: MidnightPopupProps) {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState<'habits' | 'result'>('habits');
   const [snoozeCount, setSnoozeCount] = useState(0);
   const [snoozeCountdown, setSnoozeCountdown] = useState<number | null>(null);
-  const [pendingChanges, setPendingChanges] = useState<Record<string, HabitChange>>({});
+  const [values, setValues] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -49,84 +42,115 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
   });
 
   const open = useCallback((triggerDate?: string) => {
-    // If a specific date was passed via trigger, ensure we are targeting it
-    if (triggerDate && triggerDate !== date) return;
-    
+    if (visible) return;
     if (incompleteHabits.length === 0) return;
+    
+    // Initialize centralized values from existing logs
+    const initialValues: Record<string, number> = {};
+    incompleteHabits.forEach(h => {
+      const log = logs.find(l => l.habit_id === h.id);
+      initialValues[h.id] = log?.current_value || 0;
+    });
+    setValues(initialValues);
+
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.dismiss().catch(() => {});
+    }
+
     setPhase('habits');
-    setPendingChanges({});
     setVisible(true);
-  }, [incompleteHabits.length, date]);
+  }, [incompleteHabits, logs, visible]);
 
   useEffect(() => {
-    // Check native trigger if on Android
-    if (Capacitor.getPlatform() === 'android') {
-      Midnight.checkTrigger().then(res => {
-        if (res.isMidnightAlarm) {
-          // Native alarm always targets "Yesterday"
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toISOString().split('T')[0];
-          if (yesterdayStr === date) open(date);
+    const checkNativeTrigger = () => {
+      if (Capacitor.getPlatform() === 'android') {
+        Midnight.checkTrigger().then(res => {
+          if (res.isMidnightAlarm) {
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            onTrigger(todayStr);
+          }
+        });
+      }
+    };
+
+    checkNativeTrigger();
+
+    let appStateListener: any = null;
+    const setupListener = async () => {
+      appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          setTimeout(checkNativeTrigger, 500);
         }
       });
-    }
+    };
+    setupListener();
 
     const session = getMidnightSession();
     if (session?.lastPromptedDate === date && !session?.dismissed) {
       setTimeout(() => open(date), 1200);
     }
-  }, [open, date]);  
+
+    return () => {
+      if (appStateListener) appStateListener.remove();
+    };
+  }, [open, date, onTrigger]);  
 
   const { snooze } = useMidnightScheduler({ 
     onTrigger: (d) => {
-      if (d === date) open(d);
+      onTrigger(d);
+      setTimeout(() => open(d), 100);
     }, 
     enabled: true 
   });
 
-  const handleHabitChange = useCallback((habit: Habit, log: DailyLog | undefined, update: HabitChange['update']) => {
-    setPendingChanges(prev => ({ ...prev, [habit.id]: { habit, log, update } }));
-  }, []);
+  const handleHabitChange = (habitId: string, val: number) => {
+    setValues(prev => ({ ...prev, [habitId]: val }));
+  };
 
   const handleSaveAll = async () => {
     setSaving(true);
-    const changes = Object.values(pendingChanges);
-    for (const { habit, log, update } of changes) {
-      if (update.skipped) continue;
-      await onSaveProgress(habit, log, update.value, update.completed, date);
-    }
-    const completedNow = changes.filter(c => c.update.completed).length;
-    const alreadyDone = logs.filter(l => l.is_completed).length;
-    const totalDone = completedNow + alreadyDone;
-    saveMidnightSession({ lastPromptedDate: date, dismissed: true, completedCount: totalDone });
-    
-    // Clear native notification
-    if (Capacitor.getPlatform() === 'android') {
-      Midnight.dismiss().catch(() => {});
-    }
+    try {
+      const savePromises = incompleteHabits.map(habit => {
+        const value = values[habit.id] ?? (logs.find(l => l.habit_id === habit.id)?.current_value || 0);
+        const log = logs.find(l => l.habit_id === habit.id);
+        const completed = value >= (habit.target_value || 1);
+        return onSaveProgress(habit, log, value, completed, date);
+      });
 
-    setSaving(false);
-    setPhase('result');
+      await Promise.all(savePromises);
+
+      const alreadyDone = logs.filter(l => l.is_completed).length;
+      const completedNow = incompleteHabits.filter(h => (values[h.id] ?? 0) >= (h.target_value || 1)).length;
+      
+      saveMidnightSession({ lastPromptedDate: date, dismissed: true, completedCount: alreadyDone + completedNow });
+      
+      if (Capacitor.getPlatform() === 'android') {
+        Midnight.dismiss().catch(() => {});
+      }
+
+      setPhase('result');
+    } catch (error) {
+      console.error('Failed to save habit progress:', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCompleteAll = () => {
-    const allChanges: Record<string, HabitChange> = {};
+    const allCompleted: Record<string, number> = {};
     incompleteHabits.forEach(habit => {
-      const log = logs.find(l => l.habit_id === habit.id);
-      allChanges[habit.id] = { habit, log, update: { value: habit.target_value, completed: true, skipped: false } };
+      allCompleted[habit.id] = habit.target_value || 1;
     });
-    setPendingChanges(allChanges);
+    setValues(allCompleted);
   };
 
   const handleSnooze = () => {
     if (snoozeCount >= MAX_SNOOZES) return;
-    const newCount = snoozeCount + 1;
-    setSnoozeCount(newCount);
+    setSnoozeCount(prev => prev + 1);
     setVisible(false);
     saveMidnightSession({ lastPromptedDate: date, dismissed: false, snoozed: true });
 
-    // Clear native notification on snooze
     if (Capacitor.getPlatform() === 'android') {
       Midnight.dismiss().catch(() => {});
     }
@@ -145,15 +169,11 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
     snooze(date, SNOOZE_MINUTES);
   };
 
-
   const handleDismiss = () => {
     saveMidnightSession({ lastPromptedDate: date, dismissed: true });
-    
-    // Clear native notification
     if (Capacitor.getPlatform() === 'android') {
       Midnight.dismiss().catch(() => {});
     }
-
     setVisible(false);
     if (countdownRef.current) clearInterval(countdownRef.current);
     setSnoozeCountdown(null);
@@ -164,11 +184,8 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
     setPhase('habits');
   };
 
-  const completedInPending = Object.values(pendingChanges).filter(c => c.update.completed).length;
   const alreadyCompleted = logs.filter(l => l.is_completed).length;
-  const totalCompleted = completedInPending + alreadyCompleted;
   const totalHabits = habits.length;
-
   const isYesterday = date !== new Date().toISOString().split('T')[0];
 
   const motivationalHeader = () => {
@@ -178,8 +195,6 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
     if (ratio >= 0.5) return "You're past halfway — great work! ⚡";
     return 'One last chance to close today strong.';
   };
-
-  const canSnooze = snoozeCount < MAX_SNOOZES;
 
   const formatCountdown = (s: number) => {
     const m = Math.floor(s / 60);
@@ -192,9 +207,7 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
       <AnimatePresence>
         {snoozeCountdown !== null && !visible && (
           <motion.div
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 60 }}
+            initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
             className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-primary/90 text-primary-foreground rounded-full px-4 py-2 text-xs font-medium shadow-lg backdrop-blur-sm"
           >
             <Clock className="h-3.5 w-3.5" />
@@ -206,9 +219,7 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
       <AnimatePresence>
         {visible && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[200] flex flex-col"
             style={{ background: 'rgba(8,10,22,0.95)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)' }}
@@ -224,9 +235,7 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
               {phase === 'habits' ? (
                 <motion.div
                   key="habits"
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
                   transition={{ type: 'spring', stiffness: 280, damping: 28 }}
                   className="relative flex flex-col h-full max-w-md mx-auto w-full px-4"
                 >
@@ -234,45 +243,37 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <motion.div
-                          animate={{ rotate: [0, -15, 15, 0] }}
-                          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+                          animate={{ rotate: [0, -15, 15, 0] }} transition={{ repeat: Infinity, duration: 4 }}
                           className="h-11 w-11 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center"
                         >
                           <Moon className="h-5 w-5 text-primary" />
                         </motion.div>
                         <div>
                           <p className="text-[11px] font-medium text-white/40 uppercase tracking-widest">
-                            {isYesterday ? 'Morning Catch-Up' : 'Midnight Check-In'}
+                            {isYesterday ? "Yesterday's Catch-Up" : 'Daily Check-In'}
                           </p>
                           <h1 className="text-xl font-bold font-space text-white leading-tight mt-0.5">
                             {isYesterday ? "Yesterday's Habits" : `${incompleteHabits.length} habit${incompleteHabits.length !== 1 ? 's' : ''} unfinished`}
                           </h1>
                         </div>
                       </div>
-                      {canSnooze && (
-                        <Button size="icon" variant="ghost"
-                          className="h-9 w-9 rounded-xl text-white/40 hover:text-white hover:bg-white/10 mt-1"
-                          onClick={handleSnooze}>
+                      {snoozeCount < MAX_SNOOZES && (
+                        <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-white/40 hover:text-white" onClick={handleSnooze}>
                           <Bell className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
 
-                    <p className="text-sm text-white/50 mt-3 leading-relaxed">
-                      {motivationalHeader()}
-                    </p>
+                    <p className="text-sm text-white/50 mt-3 leading-relaxed">{motivationalHeader()}</p>
 
                     <div className="mt-3 flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
                           className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
                           animate={{ width: `${totalHabits > 0 ? (alreadyCompleted / totalHabits) * 100 : 0}%` }}
-                          transition={{ duration: 0.6 }}
                         />
                       </div>
-                      <span className="text-[11px] text-white/40 whitespace-nowrap">
-                        {alreadyCompleted}/{totalHabits} done
-                      </span>
+                      <span className="text-[11px] text-white/40">{alreadyCompleted}/{totalHabits} done</span>
                     </div>
                   </div>
 
@@ -282,57 +283,38 @@ export default function MidnightPopup({ habits, logs, date, onSaveProgress }: Mi
                         key={habit.id}
                         habit={habit}
                         log={logs.find(l => l.habit_id === habit.id)}
+                        value={values[habit.id] ?? 0}
                         index={i}
-                        onChange={handleHabitChange}
+                        onChange={(v) => handleHabitChange(habit.id, v)}
                       />
                     ))}
                   </div>
 
                   <div className="pt-4 pb-8 space-y-2.5">
                     {incompleteHabits.length > 1 && (
-                      <Button variant="ghost"
-                        className="w-full h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/10 text-xs font-medium gap-1.5"
-                        onClick={handleCompleteAll}>
-                        <CheckCheck className="h-3.5 w-3.5" />
-                        Mark all as completed
+                      <Button variant="ghost" className="w-full h-10 text-white/50 text-xs font-medium gap-1.5" onClick={handleCompleteAll}>
+                        <CheckCheck className="h-3.5 w-3.5" /> Mark all as completed
                       </Button>
                     )}
                     <Button onClick={handleSaveAll} disabled={saving}
-                      className="w-full h-12 rounded-2xl font-semibold text-sm bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 text-white shadow-lg shadow-primary/30 border-0">
-                      {saving ? (
-                        <span className="flex items-center gap-2">
-                          <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Saving...
-                        </span>
-                      ) : 'Save & Close'}
+                      className="w-full h-12 rounded-2xl font-semibold bg-gradient-to-r from-primary to-violet-500 text-white shadow-lg border-0">
+                      {saving ? 'Saving...' : 'Save & Close'}
                     </Button>
                     <div className="flex gap-2">
-                      {canSnooze && (
-                        <Button variant="ghost"
-                          className="flex-1 h-10 rounded-xl text-white/40 hover:text-white hover:bg-white/10 text-xs gap-1.5"
-                          onClick={handleSnooze}>
-                          <Clock className="h-3.5 w-3.5" />
-                          Remind in {SNOOZE_MINUTES}m
-                          <span className="text-white/25">({MAX_SNOOZES - snoozeCount} left)</span>
+                      {snoozeCount < MAX_SNOOZES && (
+                        <Button variant="ghost" className="flex-1 h-10 text-white/40 text-xs" onClick={handleSnooze}>
+                          <Clock className="h-3.5 w-3.5 mr-1.5" /> Remind in {SNOOZE_MINUTES}m
                         </Button>
                       )}
-                      <Button variant="ghost"
-                        className="flex-1 h-10 rounded-xl text-white/30 hover:text-white/60 hover:bg-white/5 text-xs gap-1.5"
-                        onClick={handleDismiss}>
-                        <X className="h-3.5 w-3.5" />
-                        Skip tonight
+                      <Button variant="ghost" className="flex-1 h-10 text-white/30 text-xs" onClick={handleDismiss}>
+                        <X className="h-3.5 w-3.5 mr-1.5" /> Skip tonight
                       </Button>
                     </div>
                   </div>
                 </motion.div>
               ) : (
-                <motion.div key="result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="relative flex-1 max-w-md mx-auto w-full">
-                  <MidnightCompletionScreen
-                    completedCount={totalCompleted}
-                    totalCount={totalHabits}
-                    onClose={handleResultClose}
-                  />
+                <motion.div key="result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative flex-1 max-w-md mx-auto w-full">
+                  <MidnightCompletionScreen completedCount={alreadyCompleted + incompleteHabits.filter(h => (values[h.id] ?? 0) >= (h.target_value || 1)).length} totalCount={totalHabits} onClose={handleResultClose} />
                 </motion.div>
               )}
             </AnimatePresence>

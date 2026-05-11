@@ -20,8 +20,10 @@ public class MidnightReceiver extends BroadcastReceiver {
     public static final String ACTION_DISMISS = "app.habitra.mobile.ACTION_DISMISS";
     public static final String ACTION_STOP_VIBRATE = "app.habitra.mobile.ACTION_STOP_VIBRATE";
     public static final String ACTION_SILENT_6AM = "app.habitra.mobile.ACTION_SILENT_6AM";
+    public static final String ACTION_SWIPE = "app.habitra.mobile.ACTION_NOTIFICATION_SWIPE";
+    public static final String ACTION_SNOOZE = "app.habitra.mobile.ACTION_SNOOZE";
 
-    private static final int NOTIFICATION_ID = 1001;
+    private static final int NOTIFICATION_ID = 1002;
     private static final int MAX_CYCLES = 3;
     private static final long SNOOZE_MS = 10 * 60 * 1000;
     private static final long VIBRATE_DURATION_MS = 60 * 1000;
@@ -30,6 +32,7 @@ public class MidnightReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
         SharedPreferences prefs = context.getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE);
+        String method = prefs.getString("reminder_method", "nag");
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
             int h = prefs.getInt("review_hour", 22);
@@ -44,8 +47,22 @@ public class MidnightReceiver extends BroadcastReceiver {
             return;
         }
 
+        if (ACTION_SNOOZE.equals(action)) {
+            stopReminderService(context);
+            scheduleNextAlarm(context, SNOOZE_MS, ACTION_ALARM);
+            return;
+        }
+
+        if (ACTION_SWIPE.equals(action)) {
+            // User swiped it away. If method is "nag", we re-ping in 10 mins.
+            if ("nag".equals(method)) {
+                scheduleNextAlarm(context, SNOOZE_MS, ACTION_ALARM);
+            }
+            return;
+        }
+
         if (ACTION_STOP_VIBRATE.equals(action)) {
-            stopReminderServiceVibration(context);
+            stopReminderService(context);
             int cycle = prefs.getInt("alarm_cycle_count", 0);
             if (cycle < MAX_CYCLES) {
                 scheduleNextAlarm(context, SNOOZE_MS - VIBRATE_DURATION_MS, ACTION_ALARM);
@@ -59,7 +76,7 @@ public class MidnightReceiver extends BroadcastReceiver {
             int cycle = prefs.getInt("alarm_cycle_count", 0) + 1;
             prefs.edit().putInt("alarm_cycle_count", cycle).apply();
             
-            startReminderService(context, "Review Reminder (Attempt " + cycle + ")", true);
+            startReminderService(context, "Review Reminder (Attempt " + cycle + ")", true, method);
             
             // Auto-stop vibration logic now handled by service + this timer
             scheduleNextAlarm(context, VIBRATE_DURATION_MS, ACTION_STOP_VIBRATE);
@@ -67,15 +84,16 @@ public class MidnightReceiver extends BroadcastReceiver {
         }
 
         if (ACTION_SILENT_6AM.equals(action)) {
-            startReminderService(context, "Morning Check-in", false);
+            startReminderService(context, "Morning Check-in", false, method);
             return;
         }
     }
 
-    private void startReminderService(Context context, String title, boolean vibrate) {
+    private void startReminderService(Context context, String title, boolean vibrate, String method) {
         Intent serviceIntent = new Intent(context, HabitReminderService.class);
         serviceIntent.putExtra("title", title);
         serviceIntent.putExtra("shouldVibrate", vibrate);
+        serviceIntent.putExtra("reminderMethod", method);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(serviceIntent);
         } else {
@@ -88,24 +106,13 @@ public class MidnightReceiver extends BroadcastReceiver {
         context.stopService(serviceIntent);
     }
 
-    private void stopReminderServiceVibration(Context context) {
-        // We restart the service WITHOUT vibration to update the notification
-        // but stop the buzzing.
-        Intent serviceIntent = new Intent(context, HabitReminderService.class);
-        serviceIntent.putExtra("title", "Review Reminder (Snoozed)");
-        serviceIntent.putExtra("shouldVibrate", false);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
-        } else {
-            context.startService(serviceIntent);
-        }
-    }
-
     private void scheduleNextAlarm(Context context, long delayMs, String action) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, MidnightReceiver.class);
         intent.setAction(action);
-        PendingIntent pi = PendingIntent.getBroadcast(context, 3, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        // Use unique requestCodes for different actions to avoid overwriting
+        int requestCode = ACTION_STOP_VIBRATE.equals(action) ? 8 : 3;
+        PendingIntent pi = PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         
         long triggerAt = System.currentTimeMillis() + delayMs;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

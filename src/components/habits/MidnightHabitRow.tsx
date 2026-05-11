@@ -6,23 +6,18 @@ import type { Habit, DailyLog } from '@/lib/types';
 interface MidnightHabitRowProps {
   habit: Habit;
   log?: DailyLog;
+  value: number;
   index: number;
-  onChange: (habit: Habit, log: DailyLog | undefined, update: { value: number; completed: boolean; skipped: boolean }) => void;
+  onChange: (value: number) => void;
 }
 
-export default function MidnightHabitRow({ habit, log, index, onChange }: MidnightHabitRowProps) {
+export default function MidnightHabitRow({ habit, log, value, index, onChange }: MidnightHabitRowProps) {
   const target = habit.target_value || 1;
-  const initialValue = log?.current_value || 0;
-  const [value, setValue] = useState(initialValue);
   const color = habit.color || '#7C5CFC';
   const completed = value >= target;
 
-  useEffect(() => {
-    onChange(habit, log, { value, completed, skipped: false });
-  }, [completed, habit, log, onChange, value]);
-
   const updateValue = (nextValue: number) => {
-    setValue(Math.max(0, Math.min(target, nextValue)));
+    onChange(Math.max(0, Math.min(target, nextValue)));
   };
 
 

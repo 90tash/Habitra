@@ -8,7 +8,10 @@ export interface ReminderPermissionStatus {
 }
 
 export interface MidnightPlugin {
-  schedule(): Promise<{ exact: boolean }>;
+  schedule(options: { hour: number; minute: number; reminderMethod?: string }): Promise<{ exact: boolean }>;
+  cancel(): Promise<void>;
+  dismiss(): Promise<void>;
+  stopVibration(): Promise<void>;
   checkTrigger(): Promise<{ isMidnightAlarm: boolean }>;
   checkOverlayPermission(): Promise<{ granted: boolean }>;
   requestOverlayPermission(): Promise<void>;

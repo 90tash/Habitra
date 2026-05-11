@@ -82,14 +82,20 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
   }, [trigger]);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const preferences = appStore.getPreferences();
     const [revH, revM] = (preferences.dailyReviewTime || '22:00').split(':').map(Number);
 
-    // Schedule native alarm if on Android
+    // Schedule/Cancel native alarm if on Android
     if (Capacitor.getPlatform() === 'android') {
-      Midnight.schedule({ hour: revH, minute: revM }).catch(err => console.error('Failed to schedule native midnight alarm:', err));
+      if (enabled) {
+        Midnight.schedule({ 
+          hour: revH, 
+          minute: revM,
+          reminderMethod: preferences.reminderMethod || 'nag'
+        }).catch(err => console.error('Failed to schedule native midnight alarm:', err));
+      } else {
+        Midnight.cancel().catch(err => console.error('Failed to cancel native midnight alarm:', err));
+      }
     }
 
     const checkTime = () => {
@@ -97,53 +103,58 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
       const h = now.getHours();
       const m = now.getMinutes();
       
-      const identity = appStore.getIdentity();
-      const createdDate = identity.created_at ? new Date(identity.created_at) : now;
-      const isFirstDay = createdDate.toDateString() === now.toDateString();
-
+      const todayStr = format(now, 'yyyy-MM-dd');
       const preferences = appStore.getPreferences();
       const [revH, revM] = (preferences.dailyReviewTime || '22:00').split(':').map(Number);
 
-      // Smart Date Logic:
-      // If the review time is between 00:00 and 05:59, we are asking about "Yesterday".
-      // If the review time is between 06:00 and 23:59, we are asking about "Today".
-      const isLateNightReview = revH >= 0 && revH < 6;
-      const targetDate = isLateNightReview 
-        ? subDays(now, 1) // Reviewing yesterday
-        : now;            // Reviewing today
-      
-      const targetDateStr = format(targetDate, 'yyyy-MM-dd');
       const session = getMidnightSession();
 
       // Case 1: Trigger at custom review time (or within 5 mins)
-      const isCustomTimeWindow = h === revH && m >= revM && m <= revM + 5;
-      
-      if (isCustomTimeWindow && !firedRef.current && session?.lastPromptedDate !== targetDateStr) {
-        firedRef.current = true;
-        saveMidnightSession({ lastPromptedDate: targetDateStr, triggeredAt: new Date().toISOString() });
-        trigger(targetDateStr);
-        return;
-      }
+      // Only if reminders are enabled
+      if (enabled) {
+        const isCustomTimeWindow = h === revH && m >= revM && m <= revM + 5;
+        if (isCustomTimeWindow && !firedRef.current && session?.lastPromptedDate !== todayStr) {
+          firedRef.current = true;
+          saveMidnightSession({ lastPromptedDate: todayStr, triggeredAt: new Date().toISOString() });
+          trigger(todayStr);
+          return;
+        }
 
-      // Case 2: "Catch-up" Mode (5 hours past review time)
-      const catchUpHour = (revH + 5) % 24;
-      if (h === catchUpHour && session?.lastPromptedDate !== targetDateStr) {
-        saveMidnightSession({ lastPromptedDate: targetDateStr, isCatchUp: true });
-        trigger(targetDateStr);
-      }
+        // Case 2: "Catch-up" Mode (5 hours past review time)
+        const catchUpHour = (revH + 5) % 24;
+        if (h === catchUpHour && session?.lastPromptedDate !== todayStr) {
+          saveMidnightSession({ lastPromptedDate: todayStr, isCatchUp: true });
+          trigger(todayStr);
+        }
 
-      // Reset firedRef when out of the trigger window
-      if (h !== revH || (m < revM || m > revM + 5)) {
-        firedRef.current = false;
+        // Reset firedRef when out of the trigger window
+        if (h !== revH || (m < revM || m > revM + 5)) {
+          firedRef.current = false;
+        }
       }
     };
 
-    // Delay first check slightly to let app initialize
-    const timeout = setTimeout(checkTime, 2000);
+    // App Launch Catch-up Check (Runs regardless of 'enabled' toggle for push reminders)
+    const runLaunchCheck = () => {
+      const yesterday = subDays(new Date(), 1);
+      const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+      const session = getMidnightSession();
+
+      // If we haven't dismissed or completed yesterday's prompt, trigger it
+      if (session?.lastPromptedDate !== yesterdayStr || !session?.dismissed) {
+        // We trigger for Yesterday
+        onTrigger?.(yesterdayStr);
+      }
+    };
+
+    // Delay checks slightly to let app initialize
+    const launchTimeout = setTimeout(runLaunchCheck, 1500);
+    const firstCheckTimeout = setTimeout(checkTime, 2500);
     intervalRef.current = setInterval(checkTime, 60 * 1000);
 
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(launchTimeout);
+      clearTimeout(firstCheckTimeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (snoozeTimeoutRef.current) clearTimeout(snoozeTimeoutRef.current);
     };

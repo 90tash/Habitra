@@ -72,6 +72,8 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
     const preferences: UserPreferences = {
       dailyReviewTime,
       onboardingCompleted: true,
+      remindersEnabled: true,
+      reminderMethod: 'nag',
     };
     
     appStore.updateIdentity(identity);

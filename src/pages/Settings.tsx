@@ -565,26 +565,6 @@ export default function Settings() {
         </div>
       </motion.div>
 
-      {/* Preferences */}
-      <motion.div variants={itemVariants} className="glass rounded-2xl p-4 card-shadow border border-border/40">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Preferences</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Clock className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">Review Reminder</p>
-              <p className="text-[10px] text-muted-foreground">Daily check-in notification</p>
-            </div>
-          </div>
-
-          <TimePicker3
-            value={preferences.dailyReviewTime}
-            onChange={(val) => updatePreferences({ dailyReviewTime: val })}
-          />
-        </div>
-      </motion.div>
       <motion.div variants={itemVariants}>
         <HabitReorderList 
           habits={habits} 
