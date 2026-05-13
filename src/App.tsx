@@ -32,6 +32,11 @@ const AuthenticatedApp = () => {
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
 
   useEffect(() => {
+    // Initialize foreground state immediately for smart suppression
+    if (Capacitor.getPlatform() === 'android') {
+      Midnight.setForegroundState({ isForeground: true }).catch(() => {});
+    }
+
     let appStateListener: any = null;
 
     const setupListener = async () => {

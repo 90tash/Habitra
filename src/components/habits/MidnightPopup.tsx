@@ -140,10 +140,14 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
         Midnight.dismiss().catch(() => {});
       }
 
-      setPhase('result');
+      // Add a small artificial delay to give the UI time to "breathe" 
+      // so the user can see their progress before the celebrate screen slides in.
+      setTimeout(() => {
+        setPhase('result');
+        setSaving(false);
+      }, 600);
     } catch (error) {
       console.error('Failed to save habit progress:', error);
-    } finally {
       setSaving(false);
     }
   };

@@ -1,6 +1,7 @@
 package app.habitra.mobile;
 
 import android.app.AlarmManager;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -14,6 +15,7 @@ import android.os.Vibrator;
 import android.os.VibrationEffect;
 import androidx.core.app.NotificationCompat;
 import java.util.Calendar;
+import java.util.List;
 
 public class MidnightReceiver extends BroadcastReceiver {
     public static final String ACTION_ALARM = "app.habitra.mobile.ACTION_MIDNIGHT_ALARM";
@@ -100,9 +102,9 @@ public class MidnightReceiver extends BroadcastReceiver {
         }
 
         if (ACTION_ALARM.equals(action)) {
-            // Check if app is in foreground. If so, skip the noisy notification service 
-            // as the in-app popup will handle it.
-            boolean isForeground = prefs.getBoolean("app_is_foreground", false);
+            // Check if app is in foreground using BOTH the manual flag and a native process check.
+            // This ensures maximal reliability even if the manual flag is lost.
+            boolean isForeground = prefs.getBoolean("app_is_foreground", false) || isAppInForeground(context);
             if (isForeground) {
                 return;
             }
@@ -121,6 +123,20 @@ public class MidnightReceiver extends BroadcastReceiver {
             startReminderService(context, "Morning Check-in", false, method);
             return;
         }
+    }
+
+    private boolean isAppInForeground(Context context) {
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
+        if (appProcesses == null) return false;
+        
+        final String packageName = context.getPackageName();
+        for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
+            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND && appProcess.processName.equals(packageName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void startReminderService(Context context, String title, boolean vibrate, String method) {
