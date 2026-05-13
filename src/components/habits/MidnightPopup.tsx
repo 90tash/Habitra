@@ -37,6 +37,10 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const incompleteHabits = habits.filter(h => {
+    if (h.created_date) {
+      const localCreatedDateStr = format(new Date(h.created_date), 'yyyy-MM-dd');
+      if (date < localCreatedDateStr) return false;
+    }
     const log = logs.find(l => l.habit_id === h.id);
     return !log?.is_completed;
   });
@@ -88,7 +92,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
 
     const session = getMidnightSession();
     if (session?.lastPromptedDate === date && !session?.dismissed) {
-      setTimeout(() => open(date), 1200);
+      setTimeout(() => open(date), 50);
     }
 
     return () => {
@@ -96,12 +100,19 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
     };
   }, [open, date, onTrigger]);  
 
+  useEffect(() => {
+    if (visible && incompleteHabits.length === 0 && phase === 'habits' && !saving) {
+      setVisible(false);
+    }
+  }, [visible, incompleteHabits.length, phase, saving]);
+
   const { snooze } = useMidnightScheduler({ 
-    onTrigger: (d) => {
+    onTrigger: useCallback((d: string) => {
       onTrigger(d);
       setTimeout(() => open(d), 100);
-    }, 
-    enabled: true 
+    }, [onTrigger, open]), 
+    enabled: true,
+    habits
   });
 
   const handleHabitChange = (habitId: string, val: number) => {
@@ -186,7 +197,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
 
   const alreadyCompleted = logs.filter(l => l.is_completed).length;
   const totalHabits = habits.length;
-  const isYesterday = date !== new Date().toISOString().split('T')[0];
+  const isYesterday = date !== format(new Date(), 'yyyy-MM-dd');
 
   const motivationalHeader = () => {
     if (isYesterday) return "You missed yesterday's check-in! Don't worry, you can still log your progress now.";
@@ -307,7 +318,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
                         </Button>
                       )}
                       <Button variant="ghost" className="flex-1 h-10 text-white/30 text-xs" onClick={handleDismiss}>
-                        <X className="h-3.5 w-3.5 mr-1.5" /> Skip tonight
+                        <X className="h-3.5 w-3.5 mr-1.5" /> Maybe later
                       </Button>
                     </div>
                   </div>

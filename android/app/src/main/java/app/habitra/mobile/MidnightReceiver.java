@@ -26,7 +26,7 @@ public class MidnightReceiver extends BroadcastReceiver {
     private static final int NOTIFICATION_ID = 1002;
     private static final int MAX_CYCLES = 3;
     private static final long SNOOZE_MS = 10 * 60 * 1000;
-    private static final long VIBRATE_DURATION_MS = 60 * 1000;
+    private static final long VIBRATE_DURATION_MS = 30 * 1000;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -43,6 +43,33 @@ public class MidnightReceiver extends BroadcastReceiver {
 
         if (ACTION_DISMISS.equals(action)) {
             stopReminderService(context);
+            
+            // --- NEW: Cancel secondary nag/snooze alarms ---
+            AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            if (am != null) {
+                // Cancel Snooze (ID 3)
+                Intent snoozeIntent = new Intent(context, MidnightReceiver.class);
+                snoozeIntent.setAction(MidnightReceiver.ACTION_ALARM);
+                PendingIntent snoozePI = PendingIntent.getBroadcast(
+                    context, 3, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(snoozePI);
+
+                // Cancel Stop Vibrate Timer (ID 8)
+                Intent stopVibrateIntent = new Intent(context, MidnightReceiver.class);
+                stopVibrateIntent.setAction(MidnightReceiver.ACTION_STOP_VIBRATE);
+                PendingIntent stopVibratePI = PendingIntent.getBroadcast(
+                    context, 8, stopVibrateIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(stopVibratePI);
+            }
+            // ------------------------------------------------
+
+            // Re-schedule tomorrow's alarm to keep the daily cycle alive
+            int h = prefs.getInt("review_hour", 22);
+            int m = prefs.getInt("review_minute", 0);
+            MidnightPlugin.scheduleAlarm(context, h, m);
+
             prefs.edit().putInt("alarm_cycle_count", 0).apply();
             return;
         }
@@ -73,6 +100,13 @@ public class MidnightReceiver extends BroadcastReceiver {
         }
 
         if (ACTION_ALARM.equals(action)) {
+            // Check if app is in foreground. If so, skip the noisy notification service 
+            // as the in-app popup will handle it.
+            boolean isForeground = prefs.getBoolean("app_is_foreground", false);
+            if (isForeground) {
+                return;
+            }
+
             int cycle = prefs.getInt("alarm_cycle_count", 0) + 1;
             prefs.edit().putInt("alarm_cycle_count", cycle).apply();
             

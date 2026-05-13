@@ -1,11 +1,11 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
@@ -22,10 +22,42 @@ import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
 import { appStore } from '@/store/appStore';
 import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import Midnight from '@/lib/midnightPlugin';
 
 const AuthenticatedApp = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
+
+  useEffect(() => {
+    let appStateListener: any = null;
+
+    const setupListener = async () => {
+      appStateListener = await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (Capacitor.getPlatform() === 'android') {
+          // Update native foreground state for smart suppression
+          Midnight.setForegroundState({ isForeground: isActive }).catch(() => {});
+
+          if (isActive) {
+            // Check if we were woken up by the midnight alarm
+            Midnight.checkTrigger().then(res => {
+              if (res.isMidnightAlarm && location.pathname !== '/' && currentStep === 'ready') {
+                navigate('/', { replace: true });
+              }
+            });
+          }
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (appStateListener) appStateListener.remove();
+    };
+  }, [navigate, location.pathname, currentStep]);
 
   const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
     const identity = appStore.getIdentity();
