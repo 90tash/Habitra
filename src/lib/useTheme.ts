@@ -12,14 +12,14 @@ export const ACCENT_COLORS = [
   { name: 'Yellow',  primary: '45 93% 47%',  dark: '45 93% 53%',  hex: '#EAB308' },
 ];
 
-function applyTheme(theme: string) {
+export function applyTheme(theme: string) {
   const root = document.documentElement;
   root.classList.remove('dark', 'amoled');
   if (theme === 'dark') root.classList.add('dark');
   if (theme === 'amoled') root.classList.add('dark', 'amoled');
 }
 
-function applyAccent(colorIdx: number) {
+export function applyAccent(colorIdx: number) {
   const color = ACCENT_COLORS[colorIdx] || ACCENT_COLORS[0];
   const root = document.documentElement;
   root.style.setProperty('--primary', color.primary);
@@ -29,6 +29,14 @@ function applyAccent(colorIdx: number) {
     root.style.setProperty('--primary', color.dark);
     root.style.setProperty('--ring', color.dark);
   }
+}
+
+export function initializeTheme() {
+  if (typeof window === 'undefined') return;
+  const theme = localStorage.getItem('hp-theme') || 'dark';
+  const accentIdx = Number(localStorage.getItem('hp-accent') || 0);
+  applyTheme(theme);
+  applyAccent(accentIdx);
 }
 
 export function useTheme() {
