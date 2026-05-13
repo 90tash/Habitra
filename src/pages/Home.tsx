@@ -152,6 +152,10 @@ export default function Home() {
     const today = getTodayStr();
     if (targetDate === today) {
       const yesterdayIncomplete = habits.some(h => {
+        if (h.created_date) {
+          const localCreatedDateStr = format(new Date(h.created_date), 'yyyy-MM-dd');
+          if (localCreatedDateStr > yesterdayStr) return false;
+        }
         const log = yesterdayLogs.find(l => l.habit_id === h.id);
         return !log?.is_completed;
       });

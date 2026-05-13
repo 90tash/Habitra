@@ -139,7 +139,7 @@ export default function MidnightCompletionScreen({ completedCount, totalCount, o
           className="w-full h-13 rounded-2xl font-semibold text-sm shadow-2xl border-0"
           style={{ background: 'linear-gradient(135deg, #fff 0%, #f0f0f0 100%)', color: '#0a0a0a', height: '52px' }}>
           <Sparkles className="h-4 w-4 mr-2 opacity-60" />
-          Close & Rest Well
+          Done for now
         </Button>
       </motion.div>
     </motion.div>

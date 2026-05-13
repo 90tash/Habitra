@@ -19,6 +19,7 @@ export interface MidnightPlugin {
   requestNotificationPermission(): Promise<void>;
   requestExactAlarmPermission(): Promise<void>;
   requestFullScreenIntentPermission(): Promise<void>;
+  setForegroundState(options: { isForeground: boolean }): Promise<void>;
 }
 
 const Midnight = registerPlugin<MidnightPlugin>('Midnight');

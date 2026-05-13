@@ -81,6 +81,27 @@ public class MidnightPlugin extends Plugin {
         Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
         if (v != null) v.cancel();
         
+        // --- NEW: Cancel secondary nag/snooze alarms ---
+        AlarmManager am = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+        if (am != null) {
+            // Cancel Snooze/Action Alarm (ID 3)
+            Intent alarmIntent = new Intent(getContext(), MidnightReceiver.class);
+            alarmIntent.setAction(MidnightReceiver.ACTION_ALARM);
+            PendingIntent snoozePI = PendingIntent.getBroadcast(
+                getContext(), 3, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            am.cancel(snoozePI);
+
+            // Cancel Stop Vibrate Timer (ID 8)
+            Intent stopVibrateIntent = new Intent(getContext(), MidnightReceiver.class);
+            stopVibrateIntent.setAction(MidnightReceiver.ACTION_STOP_VIBRATE);
+            PendingIntent stopVibratePI = PendingIntent.getBroadcast(
+                getContext(), 8, stopVibrateIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            am.cancel(stopVibratePI);
+        }
+        // ------------------------------------------------
+
         // Reset cycle count
         getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
             .edit()
@@ -180,6 +201,16 @@ public class MidnightPlugin extends Plugin {
             intent.setData(Uri.parse("package:" + getContext().getPackageName()));
             getActivity().startActivity(intent);
         }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void setForegroundState(PluginCall call) {
+        Boolean isForeground = call.getBoolean("isForeground", false);
+        getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("app_is_foreground", isForeground)
+            .apply();
         call.resolve();
     }
 

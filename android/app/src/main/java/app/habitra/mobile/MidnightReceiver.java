@@ -1,6 +1,7 @@
 package app.habitra.mobile;
 
 import android.app.AlarmManager;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -14,6 +15,7 @@ import android.os.Vibrator;
 import android.os.VibrationEffect;
 import androidx.core.app.NotificationCompat;
 import java.util.Calendar;
+import java.util.List;
 
 public class MidnightReceiver extends BroadcastReceiver {
     public static final String ACTION_ALARM = "app.habitra.mobile.ACTION_MIDNIGHT_ALARM";
@@ -26,7 +28,7 @@ public class MidnightReceiver extends BroadcastReceiver {
     private static final int NOTIFICATION_ID = 1002;
     private static final int MAX_CYCLES = 3;
     private static final long SNOOZE_MS = 10 * 60 * 1000;
-    private static final long VIBRATE_DURATION_MS = 60 * 1000;
+    private static final long VIBRATE_DURATION_MS = 30 * 1000;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -43,6 +45,33 @@ public class MidnightReceiver extends BroadcastReceiver {
 
         if (ACTION_DISMISS.equals(action)) {
             stopReminderService(context);
+            
+            // --- NEW: Cancel secondary nag/snooze alarms ---
+            AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            if (am != null) {
+                // Cancel Snooze (ID 3)
+                Intent snoozeIntent = new Intent(context, MidnightReceiver.class);
+                snoozeIntent.setAction(MidnightReceiver.ACTION_ALARM);
+                PendingIntent snoozePI = PendingIntent.getBroadcast(
+                    context, 3, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(snoozePI);
+
+                // Cancel Stop Vibrate Timer (ID 8)
+                Intent stopVibrateIntent = new Intent(context, MidnightReceiver.class);
+                stopVibrateIntent.setAction(MidnightReceiver.ACTION_STOP_VIBRATE);
+                PendingIntent stopVibratePI = PendingIntent.getBroadcast(
+                    context, 8, stopVibrateIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                am.cancel(stopVibratePI);
+            }
+            // ------------------------------------------------
+
+            // Re-schedule tomorrow's alarm to keep the daily cycle alive
+            int h = prefs.getInt("review_hour", 22);
+            int m = prefs.getInt("review_minute", 0);
+            MidnightPlugin.scheduleAlarm(context, h, m);
+
             prefs.edit().putInt("alarm_cycle_count", 0).apply();
             return;
         }
@@ -73,6 +102,13 @@ public class MidnightReceiver extends BroadcastReceiver {
         }
 
         if (ACTION_ALARM.equals(action)) {
+            // Check if app is in foreground using BOTH the manual flag and a native process check.
+            // This ensures maximal reliability even if the manual flag is lost.
+            boolean isForeground = prefs.getBoolean("app_is_foreground", false) || isAppInForeground(context);
+            if (isForeground) {
+                return;
+            }
+
             int cycle = prefs.getInt("alarm_cycle_count", 0) + 1;
             prefs.edit().putInt("alarm_cycle_count", cycle).apply();
             
@@ -87,6 +123,20 @@ public class MidnightReceiver extends BroadcastReceiver {
             startReminderService(context, "Morning Check-in", false, method);
             return;
         }
+    }
+
+    private boolean isAppInForeground(Context context) {
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
+        if (appProcesses == null) return false;
+        
+        final String packageName = context.getPackageName();
+        for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
+            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND && appProcess.processName.equals(packageName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void startReminderService(Context context, String title, boolean vibrate, String method) {
