@@ -1,12 +1,29 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BarChart3, Timer, Settings } from 'lucide-react';
+import { TrendingUp, Timer, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
+const HomeOutline = ({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+);
+
 const tabs = [
-  { path: '/',           icon: Home,         label: 'Home' },
-  { path: '/statistics', icon: BarChart3,    label: 'Analytics' },
+  { path: '/',           icon: HomeOutline,   label: 'Home' },
+  { path: '/statistics', icon: TrendingUp,    label: 'Analytics' },
   { path: '/focus',      icon: Timer,        label: 'Focus' },
   { path: '/settings',   icon: Settings,     label: 'Settings' },
 ];

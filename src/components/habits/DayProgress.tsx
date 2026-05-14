@@ -13,7 +13,6 @@ export default function DayProgress({ completed = 0, total = 0 }) {
         <ProgressRing progress={percent} size={74} strokeWidth={6} color="hsl(var(--primary))">
           <div className="text-center">
             <p className="text-lg font-bold leading-none font-space">{percent}%</p>
-            <p className="text-[9px] text-muted-foreground">done</p>
           </div>
         </ProgressRing>
         <div className="min-w-0 flex-1">

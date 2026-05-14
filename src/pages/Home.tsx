@@ -5,17 +5,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import HabitCard from '@/components/habits/HabitCard';
 import DayProgress from '@/components/habits/DayProgress';
-import QuoteCard from '@/components/habits/QuoteCard';
 import StreakBadge from '@/components/habits/StreakBadge';
-import HeatmapCalendar from '@/components/habits/HeatmapCalendar';
 import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
 import MidnightPopup from '@/components/habits/MidnightPopup';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingState from '@/components/ui/LoadingState';
 import BadgeUnlockToast from '@/components/gamification/BadgeUnlockToast';
-import { getTodayStr, getGreeting } from '@/lib/habitUtils';
+import { getTodayStr, getGreeting, getRandomQuote } from '@/lib/habitUtils';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 import { evaluateBadges, Badge } from '@/lib/gamification';
 import type { Habit, DailyLog, DailyLogInput } from '@/lib/types';
@@ -33,6 +32,7 @@ export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
   const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
   const [midnightCheckDate, setMidnightCheckDate] = useState<string>(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [footerQuote] = useState(() => getRandomQuote());
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const todayStr = getTodayStr();
@@ -170,76 +170,85 @@ export default function Home() {
 
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate"
-      className="px-4 pt-6 pb-28 space-y-4">
+      className="px-5 pt-8 pb-32 space-y-7 min-h-screen flex flex-col">
 
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{getGreeting()}</p>
-          <h1 className="text-3xl font-bold font-space mt-0.5 gradient-text">Habitra</h1>
-          <p className="text-xs text-muted-foreground mt-1">{format(new Date(), 'EEEE, MMMM d')}</p>
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <h1 className="text-4xl font-bold font-space tracking-tight gradient-text leading-none">Today</h1>
+          <p className="text-lg font-space font-bold text-foreground uppercase tracking-wider pt-1">
+            {format(new Date(), 'EEEE, MMMM d')}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <motion.button
-            whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}
             onClick={() => navigate('/notifications')}
-            className="h-11 w-11 rounded-2xl flex items-center justify-center bg-muted/40 border border-border/40 transition-all"
+            className="h-12 w-12 rounded-[18px] flex items-center justify-center bg-white/[0.03] border border-white/5 backdrop-blur-xl transition-all shadow-xl"
             aria-label="Notifications">
             <Bell className="h-5 w-5 text-muted-foreground" />
           </motion.button>
           <motion.button
-            whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}
             onClick={handleAddHabit}
-            className="h-11 w-11 rounded-2xl flex items-center justify-center shadow-lg glow-primary transition-all"
+            className="h-12 w-12 rounded-[18px] flex items-center justify-center shadow-[0_10px_30px_-5px_hsl(var(--primary)/0.4)] glow-primary transition-all relative overflow-hidden"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
             aria-label="Add habit">
-            <Plus className="h-5 w-5 text-white" />
+            <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
+            <Plus className="h-6 w-6 text-white relative z-10" />
           </motion.button>
         </div>
       </motion.div>
 
-      {/* Day Progress */}
-      <motion.div variants={itemVariants}>
-        <DayProgress completed={completedCount} total={habits.length} />
-      </motion.div>
+      {/* Day Progress & Streaks */}
+      <div className="space-y-4">
+        <motion.div variants={itemVariants}>
+          <DayProgress completed={completedCount} total={habits.length} />
+        </motion.div>
 
-      {/* Streak badges */}
-      {habits.length > 0 && (
-        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3.5">
           <StreakBadge streak={currentStreak} label="Active Streak" />
           <StreakBadge streak={bestStreak} label="All-Time Best" accent />
         </motion.div>
-      )}
-
-      {/* Quote */}
-      <motion.div variants={itemVariants}><QuoteCard /></motion.div>
-
+      </div>
 
       {/* Habits list */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">Today's Habits</h2>
-          <span className="text-xs text-muted-foreground bg-muted rounded-full px-2.5 py-0.5">
-            {completedCount}/{habits.length}
-          </span>
+      <motion.div variants={itemVariants} className="flex-1 flex flex-col">
+        <div className="flex items-center justify-between mb-4 mt-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground">Today&apos;s Rituals</h2>
+          {habits.length > 0 && (
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+              <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                {completedCount}/{habits.length}
+              </span>
+            </div>
+          )}
         </div>
 
         {habitsLoading ? (
           <LoadingState count={3} />
         ) : habitsError ? (
-          <div className="rounded-2xl p-6 text-center text-sm text-muted-foreground bg-muted/30">
+          <div className="rounded-3xl p-8 text-center text-xs text-muted-foreground bg-white/[0.02] border border-white/5 backdrop-blur-md">
             Failed to load habits. Pull to refresh.
           </div>
         ) : habits.length === 0 ? (
-          <EmptyState
-            emoji="🌱"
-            title="Start your journey"
-            description="Build habits that shape who you become — one day at a time"
-            action={{ label: '✨ Create First Habit', onClick: () => setShowCreate(true) }}
-          />
+          <div className="flex-1 flex flex-col pt-4">
+            <Button 
+              onClick={handleAddHabit}
+              className="w-full h-16 rounded-[24px] text-white shadow-2xl glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] font-black text-base relative overflow-hidden group"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
+            >
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="relative z-10">Create Your First Habit</span>
+            </Button>
+            <p className="text-[10px] text-muted-foreground/40 text-center mt-6 uppercase tracking-[0.3em] font-black">
+              Start your journey today
+            </p>
+          </div>
         ) : (
-          <div className="space-y-2.5">
-            <AnimatePresence>
+          <div className="space-y-3">
+            <AnimatePresence mode="popLayout">
               {habits.map(habit => (
                 <HabitCard key={habit.id} habit={habit} log={getLogForHabit(habit.id)}
                   onIncrement={handleIncrement} onDecrement={handleDecrement} onComplete={handleComplete} />
@@ -249,12 +258,25 @@ export default function Home() {
         )}
       </motion.div>
 
-      {/* Heatmap */}
-      {allLogs.length > 0 && (
-        <motion.div variants={itemVariants}>
-          <HeatmapCalendar logs={allLogs} weeks={10} />
-        </motion.div>
-      )}
+      {/* Trademark Style Footer Quote */}
+      <motion.div 
+        variants={itemVariants}
+        className="pt-12 pb-4 text-center border-t border-white/[0.03] mt-auto relative"
+      >
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 bg-background">
+          <div className="h-1 w-1 rounded-full bg-white/20" />
+        </div>
+        <div className="px-10 mt-4">
+          <p className="text-[11px] text-muted-foreground/60 leading-relaxed font-medium italic">
+            &ldquo;{footerQuote.text}&rdquo;
+          </p>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <div className="h-[1px] w-4 bg-white/[0.05]" />
+            <p className="text-[9px] text-primary/40 font-black uppercase tracking-[0.2em]">{footerQuote.author}</p>
+            <div className="h-[1px] w-4 bg-white/[0.05]" />
+          </div>
+        </div>
+      </motion.div>
 
       <CreateHabitSheet open={showCreate} onClose={() => setShowCreate(false)} editHabit={null}
         onSave={(data) => createHabitMutation.mutate(data)} />

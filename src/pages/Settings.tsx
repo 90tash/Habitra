@@ -461,7 +461,7 @@ export default function Settings() {
             </div>
           </div>
 
-          {habitStats && (
+          {habitStats && habitStats.favourite && habitStats.leastFavourite && (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/30 rounded-2xl p-3.5 border border-border/40 space-y-1.5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-primary">
