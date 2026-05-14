@@ -19,7 +19,7 @@ import Onboarding from '@/pages/Onboarding';
 import FirstLaunchPermissions from '@/components/onboarding/FirstLaunchPermissions';
 import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
-import { appStore } from '@/store/appStore';
+import { useAppStore } from '@/store/appStore';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import Midnight from '@/lib/midnightPlugin';
@@ -28,6 +28,8 @@ import { useNavigate } from 'react-router-dom';
 
 const AuthenticatedApp = () => {
   const navigate = useNavigate();
+  const identity = useAppStore((state) => state.identity);
+  const preferences = useAppStore((state) => state.preferences);
   const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
 
@@ -65,7 +67,6 @@ const AuthenticatedApp = () => {
   }, [currentStep, navigate]);
 
   const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
-    const identity = appStore.getIdentity();
     const hasProfile = !!identity.full_name;
     const tourDone = isOnboardingComplete();
 

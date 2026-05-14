@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ACCENT_COLORS, useTheme } from '@/lib/useTheme';
-import { appStore } from '@/store/appStore';
+import { useTheme, ACCENT_COLORS } from '@/lib/useTheme';
+import { appStore, useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { Capacitor } from '@capacitor/core';
 import type { LocalUser, UserPreferences } from '@/lib/types';
@@ -52,6 +52,9 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
+  const updateIdentity = useAppStore((state) => state.updateIdentity);
+  const updatePreferences = useAppStore((state) => state.updatePreferences);
+
   const handleFinish = () => {
     const identity: LocalUser = {
       id: 'local-user',
@@ -64,15 +67,15 @@ export default function ProfileSetupWizard({ onComplete }: ProfileSetupWizardPro
       created_at: new Date().toISOString(),
     };
     
-    const preferences: UserPreferences = {
+    updateIdentity(identity);
+    updatePreferences({
       dailyReviewTime,
       onboardingCompleted: true,
       remindersEnabled: true,
       reminderMethod: 'nag',
-    };
-    
-    appStore.updateIdentity(identity);
-    appStore.updatePreferences(preferences);
+      theme: 'dark',
+      accentColorIndex: accentIdx,
+    });
     onComplete();
   };
 

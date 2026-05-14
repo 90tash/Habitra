@@ -15,12 +15,9 @@ import {
   AlertDialogTitle, AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import CreateHabitSheet from '@/components/habits/CreateHabitSheet';
-import { 
-  computeTotalXP, getLevelForXP, 
-  getLevelProgress, getNextLevel 
-} from '@/lib/gamification';
 import { HabitRepository, LogRepository } from '@/lib/repository';
-import { appStore } from '@/store/appStore';
+import { appStore, useAppStore } from '@/store/appStore';
+import { useGamification } from '@/hooks/use-gamification';
 import type { Habit, DailyLog } from '@/lib/types';
 
 const THEME_ICONS: Record<string, any> = { light: Sun, dark: Moon, amoled: Zap };
@@ -348,19 +345,10 @@ export default function Settings() {
   const navigate = useNavigate();
   const [editHabit, setEditHabit] = useState<Habit | null>(null);
 
-  const { data: habits = [] } = useQuery<Habit[]>({ 
-    queryKey: ['habits'], 
-    queryFn: HabitRepository.list,
-    placeholderData: (prev) => prev,
-  });
+  const { xp, level, progress: levelProgress, nextLevel, stats, habits } = useGamification();
 
-  const identity = appStore.getIdentity();
-  const [preferences, setPreferences] = useState(() => appStore.getPreferences());
-
-  const { data: logs = [] } = useQuery<DailyLog[]>({ 
-    queryKey: ['allLogs'], 
-    queryFn: () => LogRepository.recent(1000) 
-  });
+  const identity = useAppStore((state) => state.identity);
+  const updatePreferences = useAppStore((state) => state.updatePreferences);
 
   const deleteHabitMutation = useMutation({
     mutationFn: (id: string) => HabitRepository.delete(id),
@@ -397,31 +385,7 @@ export default function Settings() {
     },
   });
 
-  const updatePreferences = (patch: any) => {
-    const next = appStore.updatePreferences(patch);
-    setPreferences(next);
-    queryClient.invalidateQueries();
-  };
-
-  const xp = computeTotalXP(logs, habits);
-  const level = getLevelForXP(xp);
-  const levelProgress = getLevelProgress(xp);
-  const nextLevel = getNextLevel(xp);
-
-  const habitStats = useMemo(() => {
-    if (!habits || habits.length === 0) return null;
-    const stats = habits.map(h => {
-      const completions = logs.filter(l => l && l.habit_id === h.id && l.is_completed).length;
-      return { ...h, completions };
-    }).sort((a, b) => b.completions - a.completions);
-    
-    if (stats.length === 0) return null;
-
-    return {
-      favourite: stats[0],
-      leastFavourite: stats[stats.length - 1],
-    };
-  }, [habits, logs]);
+  const habitStats = stats;
 
   const pageVariants = {
     initial: { opacity: 0, y: 12 },
