@@ -1,10 +1,13 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
+
+import { useState, useEffect } from 'react';
+
 
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
@@ -32,6 +35,7 @@ const AuthenticatedApp = () => {
   const navigate = useNavigate();
   const identity = useAppStore((state) => state.identity);
   const preferences = useAppStore((state) => state.preferences);
+
   const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
 
