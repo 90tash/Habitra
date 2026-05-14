@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useAppStore } from '@/store/appStore';
 
 export const THEMES = ['light', 'dark', 'amoled'];
 export const ACCENT_COLORS = [
@@ -24,7 +25,6 @@ export function applyAccent(colorIdx: number) {
   const root = document.documentElement;
   root.style.setProperty('--primary', color.primary);
   root.style.setProperty('--ring', color.primary);
-  // In dark we use the dark variant
   if (root.classList.contains('dark')) {
     root.style.setProperty('--primary', color.dark);
     root.style.setProperty('--ring', color.dark);
@@ -33,32 +33,38 @@ export function applyAccent(colorIdx: number) {
 
 export function initializeTheme() {
   if (typeof window === 'undefined') return;
-  const theme = localStorage.getItem('hp-theme') || 'dark';
-  const accentIdx = Number(localStorage.getItem('hp-accent') || 0);
+  
+  // Try to migrate from legacy keys if they exist
+  const legacyTheme = localStorage.getItem('hp-theme');
+  const legacyAccent = localStorage.getItem('hp-accent');
+  
+  // Note: Detailed migration happens when the store initializes via Zustand's persist
+  // This is a quick sync for the very first paint
+  const theme = legacyTheme || 'dark';
+  const accentIdx = Number(legacyAccent || 0);
+  
   applyTheme(theme);
   applyAccent(accentIdx);
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<string>(() =>
-    typeof window !== 'undefined' ? (localStorage.getItem('hp-theme') || 'dark') : 'dark'
-  );
-  const [accentIdx, setAccentIdxState] = useState<number>(() =>
-    typeof window !== 'undefined' ? Number(localStorage.getItem('hp-accent') || 0) : 0
-  );
+  const preferences = useAppStore((state) => state.preferences);
+  const updatePreferences = useAppStore((state) => state.updatePreferences);
+
+  const { theme, accentColorIndex: accentIdx } = preferences;
 
   useEffect(() => {
     applyTheme(theme);
     applyAccent(accentIdx);
-    localStorage.setItem('hp-theme', theme);
   }, [theme, accentIdx]);
 
-  const setTheme = (t: string) => { setThemeState(t); };
-  const toggleTheme = () => setThemeState(t => {
-    const idx = THEMES.indexOf(t);
-    return THEMES[(idx + 1) % THEMES.length];
-  });
-  const setAccent = (idx: number) => { setAccentIdxState(idx); localStorage.setItem('hp-accent', idx.toString()); };
+  const setTheme = (t: string) => updatePreferences({ theme: t as any });
+  const toggleTheme = () => {
+    const idx = THEMES.indexOf(theme);
+    const nextTheme = THEMES[(idx + 1) % THEMES.length];
+    setTheme(nextTheme);
+  };
+  const setAccent = (idx: number) => updatePreferences({ accentColorIndex: idx });
 
   return { theme, setTheme, toggleTheme, accentIdx, setAccent, ACCENT_COLORS, THEMES };
 }

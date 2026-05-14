@@ -112,6 +112,16 @@ public class MidnightPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setPendingCount(PluginCall call) {
+        Integer count = call.getInt("count", 0);
+        getContext().getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("pending_habit_count", count)
+            .apply();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void schedule(PluginCall call) {
         Integer hour = call.getInt("hour");
         Integer minute = call.getInt("minute");

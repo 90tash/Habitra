@@ -20,9 +20,6 @@ type EntityStore<T extends { id: string }> = {
   delete: (id: string) => Promise<{ id: string }>;
 };
 
-
-const delay = () => new Promise<void>(resolve => setTimeout(resolve, 0));
-
 const newId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -33,16 +30,23 @@ const newId = (): string => {
 const readCollection = <T>(key: string): T[] => {
   if (typeof localStorage === 'undefined') return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed as T[] : [];
-  } catch {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch (error) {
+    console.error(`Error reading collection ${key}:`, error);
     return [];
   }
 };
 
 const writeCollection = <T>(key: string, items: T[]) => {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(items));
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch (error) {
+    console.error(`Error writing collection ${key}:`, error);
+  }
 };
 
 const sortItems = <T extends Record<string, unknown>>(items: T[], sort?: SortValue<T>) => {
@@ -67,20 +71,21 @@ const createEntityStore = <T extends { id: string } & Record<string, unknown>>(
   defaults: EntityDefaults<T> = {}
 ): EntityStore<T> => ({
   async list(sort, limit) {
-    await delay();
     const items = sortItems(readCollection<T>(storageKey), sort);
     return typeof limit === 'number' ? items.slice(0, limit) : items;
   },
 
   async filter(query, sort, limit) {
-    await delay();
-    const items = sortItems(readCollection<T>(storageKey).filter(item => matchesFilter(item, query)), sort);
+    const items = sortItems(
+      readCollection<T>(storageKey).filter((item) => matchesFilter(item, query)),
+      sort
+    );
     return typeof limit === 'number' ? items.slice(0, limit) : items;
   },
 
   async create(data) {
-    await delay();
     const now = new Date().toISOString();
+    const items = readCollection<T>(storageKey);
     const item = {
       ...defaults,
       ...data,
@@ -88,34 +93,35 @@ const createEntityStore = <T extends { id: string } & Record<string, unknown>>(
       created_date: now,
       updated_date: now,
     } as unknown as T;
-    writeCollection(storageKey, [...readCollection<T>(storageKey), item]);
+    
+    writeCollection(storageKey, [...items, item]);
     return item;
   },
 
   async update(id, data) {
-    await delay();
     const items = readCollection<T>(storageKey);
-    const index = items.findIndex(item => item.id === id);
+    const index = items.findIndex((item) => item.id === id);
     if (index === -1) throw new Error(`Item not found: ${id}`);
+    
     const next = {
       ...items[index],
       ...data,
       id,
       updated_date: new Date().toISOString(),
     } as T;
+    
     items[index] = next;
     writeCollection(storageKey, items);
     return next;
   },
 
   async bulkUpdate(updates) {
-    await delay();
     const items = readCollection<T>(storageKey);
     const results: T[] = [];
     const now = new Date().toISOString();
 
     updates.forEach(({ id, data }) => {
-      const index = items.findIndex(item => item.id === id);
+      const index = items.findIndex((item) => item.id === id);
       if (index !== -1) {
         const next = {
           ...items[index],
@@ -133,8 +139,8 @@ const createEntityStore = <T extends { id: string } & Record<string, unknown>>(
   },
 
   async delete(id) {
-    await delay();
-    writeCollection(storageKey, readCollection<T>(storageKey).filter(item => item.id !== id));
+    const items = readCollection<T>(storageKey).filter((item) => item.id !== id);
+    writeCollection(storageKey, items);
     return { id };
   },
 });
@@ -162,8 +168,10 @@ export const LocalDataStore = {
     notes: '',
   }),
   async deleteLogsForHabit(habitId: string) {
-    await delay();
-    writeCollection(STORAGE_KEYS.logs, readCollection<DailyLog>(STORAGE_KEYS.logs).filter(log => log.habit_id !== habitId));
+    const items = readCollection<DailyLog>(STORAGE_KEYS.logs).filter(
+      (log) => log.habit_id !== habitId
+    );
+    writeCollection(STORAGE_KEYS.logs, items);
   },
 };
 

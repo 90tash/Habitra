@@ -5,7 +5,9 @@ import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from
 import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
+
 import { useState, useEffect } from 'react';
+
 
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
@@ -20,52 +22,55 @@ import Onboarding from '@/pages/Onboarding';
 import FirstLaunchPermissions from '@/components/onboarding/FirstLaunchPermissions';
 import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
-import { appStore } from '@/store/appStore';
+import { useAppStore } from '@/store/appStore';
 import { Capacitor } from '@capacitor/core';
-import { App as CapacitorApp } from '@capacitor/app';
+import { App as CapApp } from '@capacitor/app';
 import Midnight from '@/lib/midnightPlugin';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const AuthenticatedApp = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const identity = useAppStore((state) => state.identity);
+  const preferences = useAppStore((state) => state.preferences);
+
   const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
 
   useEffect(() => {
-    // Initialize foreground state immediately for smart suppression
-    if (Capacitor.getPlatform() === 'android') {
-      Midnight.setForegroundState({ isForeground: true }).catch(() => {});
-    }
+    if (currentStep !== 'ready') return;
 
-    let appStateListener: any = null;
-
-    const setupListener = async () => {
-      appStateListener = await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-        if (Capacitor.getPlatform() === 'android') {
-          // Update native foreground state for smart suppression
-          Midnight.setForegroundState({ isForeground: isActive }).catch(() => {});
-
-          if (isActive) {
-            // Check if we were woken up by the midnight alarm
-            Midnight.checkTrigger().then(res => {
-              if (res.isMidnightAlarm && location.pathname !== '/' && currentStep === 'ready') {
-                navigate('/', { replace: true });
-              }
-            });
+    const checkNativeTrigger = () => {
+      if (Capacitor.getPlatform() === 'android') {
+        Midnight.checkTrigger().then(res => {
+          if (res.isMidnightAlarm) {
+            navigate('/');
           }
+        });
+      }
+    };
+
+    // Initial check
+    checkNativeTrigger();
+
+    // Foreground check
+    const setupListener = async () => {
+      const listener = await CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          setTimeout(checkNativeTrigger, 500);
         }
       });
+      return listener;
     };
 
-    setupListener();
+    const listenerPromise = setupListener();
 
     return () => {
-      if (appStateListener) appStateListener.remove();
+      listenerPromise.then(l => l.remove());
     };
-  }, [navigate, location.pathname, currentStep]);
+  }, [currentStep, navigate]);
 
   const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
-    const identity = appStore.getIdentity();
     const hasProfile = !!identity.full_name;
     const tourDone = isOnboardingComplete();
 

@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { appStore } from '@/store/appStore';
+import { useAppStore } from '@/store/appStore';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function EditProfile() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const identity = appStore.getIdentity();
+  const identity = useAppStore((state) => state.identity);
+  const updateIdentity = useAppStore((state) => state.updateIdentity);
 
   const [name, setName] = useState(identity.full_name);
   const [avatar, setAvatar] = useState(identity.avatarUri);
@@ -23,8 +23,7 @@ export default function EditProfile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
-    appStore.updateIdentity({ full_name: name, avatarUri: avatar, bio, tags });
-    queryClient.invalidateQueries();
+    updateIdentity({ full_name: name, avatarUri: avatar, bio, tags });
     navigate(-1);
   };
 

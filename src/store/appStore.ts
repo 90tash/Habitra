@@ -1,14 +1,26 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { LocalUser, UserPreferences } from '@/lib/types';
-
-const SETTINGS_KEY = 'habitra:settings';
-const IDENTITY_KEY = 'habitra:identity';
-const PREFERENCES_KEY = 'habitra:preferences';
 
 export type AppSettings = {
   remindersEnabled: boolean;
   focusSoundsEnabled: boolean;
   analyticsEnabled: boolean;
 };
+
+interface AppState {
+  settings: AppSettings;
+  identity: LocalUser;
+  preferences: UserPreferences;
+  
+  // Actions
+  updateSettings: (patch: Partial<AppSettings>) => void;
+  updateIdentity: (patch: Partial<LocalUser>) => void;
+  updatePreferences: (patch: Partial<UserPreferences>) => void;
+  
+  // Helper for direct checks (legacy/non-reactive use cases)
+  getState: () => { settings: AppSettings; identity: LocalUser; preferences: UserPreferences };
+}
 
 const DEFAULT_SETTINGS: AppSettings = {
   remindersEnabled: true,
@@ -30,40 +42,45 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   onboardingCompleted: false,
   remindersEnabled: true,
   reminderMethod: 'nag',
+  theme: 'dark',
+  accentColorIndex: 0,
 };
 
-const readJson = <T>(key: string, fallback: T): T => {
-  if (typeof localStorage === 'undefined') return fallback;
-  try {
-    const value = localStorage.getItem(key);
-    return value ? { ...fallback, ...JSON.parse(value) } : fallback;
-  } catch {
-    return fallback;
-  }
-};
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      settings: DEFAULT_SETTINGS,
+      identity: DEFAULT_IDENTITY,
+      preferences: DEFAULT_PREFERENCES,
 
-const writeJson = <T>(key: string, value: T) => {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(value));
-};
+      updateSettings: (patch) =>
+        set((state) => ({ settings: { ...state.settings, ...patch } })),
+      
+      updateIdentity: (patch) =>
+        set((state) => ({ identity: { ...state.identity, ...patch } })),
+      
+      updatePreferences: (patch) =>
+        set((state) => ({ preferences: { ...state.preferences, ...patch } })),
 
+      getState: () => ({
+        settings: get().settings,
+        identity: get().identity,
+        preferences: get().preferences,
+      }),
+    }),
+    {
+      name: 'habitra-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
+
+// Backward compatibility wrapper for non-hook usage
 export const appStore = {
-  getSettings: () => readJson(SETTINGS_KEY, DEFAULT_SETTINGS),
-  updateSettings: (patch: Partial<AppSettings>) => {
-    const next = { ...appStore.getSettings(), ...patch };
-    writeJson(SETTINGS_KEY, next);
-    return next;
-  },
-  getIdentity: () => readJson(IDENTITY_KEY, DEFAULT_IDENTITY),
-  updateIdentity: (patch: Partial<LocalUser>) => {
-    const next = { ...appStore.getIdentity(), ...patch };
-    writeJson(IDENTITY_KEY, next);
-    return next;
-  },
-  getPreferences: () => readJson(PREFERENCES_KEY, DEFAULT_PREFERENCES),
-  updatePreferences: (patch: Partial<UserPreferences>) => {
-    const next = { ...appStore.getPreferences(), ...patch };
-    writeJson(PREFERENCES_KEY, next);
-    return next;
-  },
+  getSettings: () => useAppStore.getState().settings,
+  updateSettings: (patch: Partial<AppSettings>) => useAppStore.getState().updateSettings(patch),
+  getIdentity: () => useAppStore.getState().identity,
+  updateIdentity: (patch: Partial<LocalUser>) => useAppStore.getState().updateIdentity(patch),
+  getPreferences: () => useAppStore.getState().preferences,
+  updatePreferences: (patch: Partial<UserPreferences>) => useAppStore.getState().updatePreferences(patch),
 };

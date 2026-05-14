@@ -74,6 +74,8 @@ export interface UserPreferences {
   onboardingCompleted: boolean;
   remindersEnabled: boolean;
   reminderMethod: 'nag' | 'bubble';
+  theme: 'light' | 'dark' | 'amoled';
+  accentColorIndex: number;
 }
 
 export type AuthError = {

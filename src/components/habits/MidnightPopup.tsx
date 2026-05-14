@@ -66,39 +66,11 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
   }, [incompleteHabits, logs, visible]);
 
   useEffect(() => {
-    const checkNativeTrigger = () => {
-      if (Capacitor.getPlatform() === 'android') {
-        Midnight.checkTrigger().then(res => {
-          if (res.isMidnightAlarm) {
-            const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
-            onTrigger(todayStr);
-          }
-        });
-      }
-    };
-
-    checkNativeTrigger();
-
-    let appStateListener: any = null;
-    const setupListener = async () => {
-      appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) {
-          setTimeout(checkNativeTrigger, 500);
-        }
-      });
-    };
-    setupListener();
-
     const session = getMidnightSession();
     if (session?.lastPromptedDate === date && !session?.dismissed) {
       setTimeout(() => open(date), 50);
     }
-
-    return () => {
-      if (appStateListener) appStateListener.remove();
-    };
-  }, [open, date, onTrigger]);  
+  }, [open, date]);  
 
   useEffect(() => {
     if (visible && incompleteHabits.length === 0 && phase === 'habits' && !saving) {
@@ -134,7 +106,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
       const alreadyDone = logs.filter(l => l.is_completed).length;
       const completedNow = incompleteHabits.filter(h => (values[h.id] ?? 0) >= (h.target_value || 1)).length;
       
-      saveMidnightSession({ lastPromptedDate: date, dismissed: true, completedCount: alreadyDone + completedNow });
+      saveMidnightSession(date, { dismissed: true, completedCount: alreadyDone + completedNow });
       
       if (Capacitor.getPlatform() === 'android') {
         Midnight.dismiss().catch(() => {});
@@ -164,7 +136,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
     if (snoozeCount >= MAX_SNOOZES) return;
     setSnoozeCount(prev => prev + 1);
     setVisible(false);
-    saveMidnightSession({ lastPromptedDate: date, dismissed: false, snoozed: true });
+    saveMidnightSession(date, { dismissed: false, snoozed: true });
 
     if (Capacitor.getPlatform() === 'android') {
       Midnight.dismiss().catch(() => {});
@@ -185,7 +157,7 @@ export default function MidnightPopup({ habits, logs, date, onTrigger, onSavePro
   };
 
   const handleDismiss = () => {
-    saveMidnightSession({ lastPromptedDate: date, dismissed: true });
+    saveMidnightSession(date, { dismissed: true });
     if (Capacitor.getPlatform() === 'android') {
       Midnight.dismiss().catch(() => {});
     }

@@ -14,12 +14,13 @@ import { Flame, TrendingUp, Zap, ChevronLeft, ChevronRight,
   CheckCircle2, Circle, LayoutGrid, Calendar as CalendarIcon, 
   Sprout, Trophy, HelpCircle
 } from 'lucide-react';
-import { computeTotalXP, calcConsistencyScore, evaluateBadges, getLevelForXP, BADGES } from '@/lib/gamification';
-import XPBar from '@/components/gamification/XPBar';
-import InsightCard from '@/components/gamification/InsightCard';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useGamification } from '@/hooks/use-gamification';
+import { BADGES, Badge } from '@/lib/gamification';
+import XPBar from '@/components/gamification/XPBar';
+import InsightCard from '@/components/gamification/InsightCard';
 
 import { Habit, DailyLog } from '@/lib/types';
 
@@ -53,13 +54,15 @@ export default function Statistics() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
 
-  const { data: habits = [] } = useQuery<Habit[]>({ queryKey: ['habits'], queryFn: HabitRepository.list });
-  const { data: logs = [] } = useQuery<DailyLog[]>({ queryKey: ['allLogs'], queryFn: () => LogRepository.recent(1000) });
-
-  const xp = computeTotalXP(logs, habits);
-  const level = getLevelForXP(xp);
-  const unlockedBadges = evaluateBadges(habits, logs);
-  const consistency = calcConsistencyScore(logs, habits);
+  const { 
+    xp, 
+    level, 
+    unlockedBadges, 
+    consistencyScore: consistency, 
+    habits, 
+    allLogs: logs,
+    insights 
+  } = useGamification();
 
   // --- STATS TAB DATA ---
   const weekData = useMemo(() => {

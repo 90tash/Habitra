@@ -5,7 +5,7 @@ import { ArrowLeft, Bell, Clock, RefreshCcw, Layers } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useTheme, ACCENT_COLORS } from '@/lib/useTheme';
-import { appStore } from '@/store/appStore';
+import { appStore, useAppStore } from '@/store/appStore';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { AnalogTimePicker } from '@/components/ui/AnalogTimePicker';
@@ -17,7 +17,8 @@ export default function Notifications() {
   const queryClient = useQueryClient();
   const { accentIdx } = useTheme();
   
-  const [prefs, setPrefs] = useState(() => appStore.getPreferences());
+  const prefs = useAppStore((state) => state.preferences);
+  const updatePreferences = useAppStore((state) => state.updatePreferences);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [hasOverlayPermission, setHasOverlayPermission] = useState(true);
 
@@ -44,10 +45,9 @@ export default function Notifications() {
   };
 
   const updatePrefs = (patch: any) => {
-    const next = appStore.updatePreferences(patch);
-    setPrefs(next);
+    updatePreferences(patch);
     queryClient.invalidateQueries();
-    syncNative(next);
+    syncNative({ ...prefs, ...patch });
   };
 
   const requestOverlay = async () => {
