@@ -185,14 +185,14 @@ export default function Home() {
           <motion.button
             whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}
             onClick={() => navigate('/notifications')}
-            className="h-12 w-12 rounded-[18px] flex items-center justify-center bg-white/[0.03] border border-white/5 backdrop-blur-xl transition-all shadow-xl"
+            className="h-12 w-12 rounded-[18px] flex items-center justify-center bg-foreground/[0.03] border border-foreground/10 backdrop-blur-xl transition-all shadow-sm"
             aria-label="Notifications">
             <Bell className="h-5 w-5 text-muted-foreground" />
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}
             onClick={handleAddHabit}
-            className="h-12 w-12 rounded-[18px] flex items-center justify-center shadow-[0_10px_30px_-5px_hsl(var(--primary)/0.4)] glow-primary transition-all relative overflow-hidden"
+            className="h-12 w-12 rounded-[18px] flex items-center justify-center shadow-[0_10px_30px_-5px_hsl(var(--primary)/0.4)] glow-primary transition-all relative overflow-hidden border border-primary/20"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
             aria-label="Add habit">
             <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
@@ -218,9 +218,9 @@ export default function Home() {
         <div className="flex items-center justify-between mb-4 mt-2 px-1">
           <h2 className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground">Today&apos;s Rituals</h2>
           {habits.length > 0 && (
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+            <div className="flex items-center gap-2 bg-foreground/[0.05] px-3 py-1.5 rounded-full border border-foreground/[0.05]">
               <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                 {completedCount}/{habits.length}
               </span>
             </div>
@@ -230,14 +230,14 @@ export default function Home() {
         {habitsLoading ? (
           <LoadingState count={3} />
         ) : habitsError ? (
-          <div className="rounded-3xl p-8 text-center text-xs text-muted-foreground bg-white/[0.02] border border-white/5 backdrop-blur-md">
+          <div className="rounded-3xl p-8 text-center text-xs text-muted-foreground bg-foreground/[0.02] border border-foreground/[0.05] backdrop-blur-md">
             Failed to load habits. Pull to refresh.
           </div>
         ) : habits.length === 0 ? (
           <div className="flex-1 flex flex-col pt-4">
             <Button 
               onClick={handleAddHabit}
-              className="w-full h-16 rounded-[24px] text-white shadow-2xl glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] font-black text-base relative overflow-hidden group"
+              className="w-full h-16 rounded-[24px] text-white shadow-xl glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] font-black text-base relative overflow-hidden group border border-primary/20"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
             >
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -262,19 +262,19 @@ export default function Home() {
       {/* Trademark Style Footer Quote */}
       <motion.div 
         variants={itemVariants}
-        className="pt-12 pb-4 text-center border-t border-white/[0.03] mt-auto relative"
+        className="pt-12 pb-4 text-center border-t border-foreground/[0.05] mt-auto relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 bg-background">
-          <div className="h-1 w-1 rounded-full bg-white/20" />
+          <div className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
         </div>
         <div className="px-10 mt-4">
-          <p className="text-[11px] text-muted-foreground/60 leading-relaxed font-medium italic">
+          <p className="text-[11px] text-muted-foreground/80 leading-relaxed font-medium italic">
             &ldquo;{footerQuote.text}&rdquo;
           </p>
           <div className="mt-3 flex items-center justify-center gap-3">
-            <div className="h-[1px] w-4 bg-white/[0.05]" />
-            <p className="text-[9px] text-primary/40 font-black uppercase tracking-[0.2em]">{footerQuote.author}</p>
-            <div className="h-[1px] w-4 bg-white/[0.05]" />
+            <div className="h-[1px] w-4 bg-foreground/[0.05]" />
+            <p className="text-[9px] text-primary/60 font-black uppercase tracking-[0.2em]">{footerQuote.author}</p>
+            <div className="h-[1px] w-4 bg-foreground/[0.05]" />
           </div>
         </div>
       </motion.div>

@@ -108,7 +108,8 @@ C:\USERS\ASHISH PATRA\DOCUMENTS\HABITRA
 
 ## 9. Business Logic
 - **XP Algorithm**: Base 10 XP per completion + streak bonus (capped at 20).
-- **Leveling**: 10 distinct levels with increasing XP thresholds (Seedling -> Transcendent).
+- **Leveling**: 10 distinct ranks organized into tiers (Initiate -> Builder -> Legend) with increasing XP thresholds (Nomad -> Monarch).
+- **Folklore**: Narrative-driven rank descriptions that replace simple icons.
 - **Consistency**: Percentage of days with >=50% habit completion over the last 30 days.
 - **Midnight Trigger**: Uses native Android alarms via `Midnight` plugin or local `setTimeout` fallback.
 
