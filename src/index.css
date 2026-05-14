@@ -161,10 +161,10 @@
 
 /* Glow effects */
 .glow-primary {
-  box-shadow: 0 0 20px hsl(var(--primary) / 0.35), 0 0 40px hsl(var(--primary) / 0.15);
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.25), 0 0 30px hsl(var(--primary) / 0.1);
 }
 .glow-accent {
-  box-shadow: 0 0 20px hsl(var(--accent) / 0.35), 0 0 40px hsl(var(--accent) / 0.15);
+  box-shadow: 0 0 15px hsl(var(--accent) / 0.25), 0 0 30px hsl(var(--accent) / 0.1);
 }
 
 /* Streak flame animation */

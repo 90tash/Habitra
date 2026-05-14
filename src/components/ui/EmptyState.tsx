@@ -79,7 +79,7 @@ export default function EmptyState({
           className={`font-black shadow-2xl glow-primary transition-all hover:scale-105 active:scale-95 ${hero ? 'mt-12 h-24 w-full text-2xl rounded-[32px]' : 'rounded-full mt-6 h-10 text-sm'}`}
           style={{ 
             background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))',
-            boxShadow: hero ? '0 20px 40px -10px hsl(var(--primary)/0.5)' : 'none'
+            boxShadow: hero ? '0 15px 30px -10px hsl(var(--primary)/0.3)' : 'none'
           }}>
           {action.label}
         </Button>

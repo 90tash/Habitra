@@ -6,6 +6,7 @@ import { format, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import HabitCard from '@/components/habits/HabitCard';
 import DayProgress from '@/components/habits/DayProgress';
 import StreakBadge from '@/components/habits/StreakBadge';
@@ -192,7 +193,7 @@ export default function Home() {
           <motion.button
             whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}
             onClick={handleAddHabit}
-            className="h-12 w-12 rounded-[18px] flex items-center justify-center shadow-[0_10px_30px_-5px_hsl(var(--primary)/0.4)] glow-primary transition-all relative overflow-hidden"
+            className="h-12 w-12 rounded-[18px] flex items-center justify-center shadow-[0_8px_20px_-5px_hsl(var(--primary)/0.3)] glow-primary transition-all relative overflow-hidden"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
             aria-label="Add habit">
             <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
@@ -233,28 +234,36 @@ export default function Home() {
           <div className="rounded-3xl p-8 text-center text-xs text-muted-foreground bg-white/[0.02] border border-white/5 backdrop-blur-md">
             Failed to load habits. Pull to refresh.
           </div>
-        ) : habits.length === 0 ? (
-          <div className="flex-1 flex flex-col pt-4">
-            <Button 
-              onClick={handleAddHabit}
-              className="w-full h-16 rounded-[24px] text-white shadow-2xl glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] font-black text-base relative overflow-hidden group"
-              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
-            >
-              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="relative z-10">Create Your First Habit</span>
-            </Button>
-            <p className="text-[10px] text-muted-foreground/40 text-center mt-6 uppercase tracking-[0.3em] font-black">
-              Start your journey today
-            </p>
-          </div>
         ) : (
-          <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {habits.map(habit => (
-                <HabitCard key={habit.id} habit={habit} log={getLogForHabit(habit.id)}
-                  onIncrement={handleIncrement} onDecrement={handleDecrement} onComplete={handleComplete} />
-              ))}
-            </AnimatePresence>
+          <div className="space-y-4">
+            {habits.length > 0 && (
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
+                  {habits.map(habit => (
+                    <HabitCard key={habit.id} habit={habit} log={getLogForHabit(habit.id)}
+                      onIncrement={handleIncrement} onDecrement={handleDecrement} onComplete={handleComplete} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+
+            <div className={`flex flex-col ${habits.length > 0 ? 'pt-1' : 'pt-4'}`}>
+              <Button 
+                onClick={handleAddHabit}
+                className="w-full h-12 rounded-[22px] text-white shadow-2xl glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group font-bold text-sm"
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}
+              >
+                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="relative z-10">
+                  {habits.length === 0 ? 'Create Your First Habit' : 'Create a New Habit'}
+                </span>
+              </Button>
+              {habits.length === 0 && (
+                <p className="text-[10px] text-muted-foreground/40 text-center mt-4 uppercase tracking-[0.3em] font-black">
+                  Start your journey today
+                </p>
+              )}
+            </div>
           </div>
         )}
       </motion.div>
@@ -262,19 +271,19 @@ export default function Home() {
       {/* Trademark Style Footer Quote */}
       <motion.div 
         variants={itemVariants}
-        className="pt-12 pb-4 text-center border-t border-white/[0.03] mt-auto relative"
+        className="pt-6 pb-4 text-center border-t border-foreground/10 mt-auto relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 bg-background">
-          <div className="h-1 w-1 rounded-full bg-white/20" />
+          <div className="h-1 w-1 rounded-full bg-foreground/20" />
         </div>
-        <div className="px-10 mt-4">
+        <div className="px-10 mt-2">
           <p className="text-[11px] text-muted-foreground/60 leading-relaxed font-medium italic">
             &ldquo;{footerQuote.text}&rdquo;
           </p>
           <div className="mt-3 flex items-center justify-center gap-3">
-            <div className="h-[1px] w-4 bg-white/[0.05]" />
+            <div className="h-[1px] w-4 bg-foreground/10" />
             <p className="text-[9px] text-primary/40 font-black uppercase tracking-[0.2em]">{footerQuote.author}</p>
-            <div className="h-[1px] w-4 bg-white/[0.05]" />
+            <div className="h-[1px] w-4 bg-foreground/10" />
           </div>
         </div>
       </motion.div>
