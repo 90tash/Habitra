@@ -5,7 +5,6 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
-import { useState } from 'react';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
@@ -22,10 +21,48 @@ import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
 import { appStore } from '@/store/appStore';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import Midnight from '@/lib/midnightPlugin';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const AuthenticatedApp = () => {
+  const navigate = useNavigate();
   const shouldShowFirstLaunchPermissions = Capacitor.getPlatform() === 'android' && !hasSeenFirstLaunchPermissions();
   const [currentStep, setCurrentStep] = useState<'splash' | 'permissions' | 'onboarding' | 'profile' | 'ready'>('splash');
+
+  useEffect(() => {
+    if (currentStep !== 'ready') return;
+
+    const checkNativeTrigger = () => {
+      if (Capacitor.getPlatform() === 'android') {
+        Midnight.checkTrigger().then(res => {
+          if (res.isMidnightAlarm) {
+            navigate('/');
+          }
+        });
+      }
+    };
+
+    // Initial check
+    checkNativeTrigger();
+
+    // Foreground check
+    const setupListener = async () => {
+      const listener = await CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          setTimeout(checkNativeTrigger, 500);
+        }
+      });
+      return listener;
+    };
+
+    const listenerPromise = setupListener();
+
+    return () => {
+      listenerPromise.then(l => l.remove());
+    };
+  }, [currentStep, navigate]);
 
   const checkNextStep = (completedStep: 'splash' | 'onboarding' | 'profile') => {
     const identity = appStore.getIdentity();

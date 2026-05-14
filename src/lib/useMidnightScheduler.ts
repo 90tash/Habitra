@@ -10,11 +10,11 @@ import { Capacitor } from '@capacitor/core';
 import { subDays, format } from 'date-fns';
 import { appStore } from '@/store/appStore';
 import Midnight from './midnightPlugin';
+import { HabitRepository, LogRepository } from './repository';
 
-const STORAGE_KEY = 'habitra-midnight-session';
+const STORAGE_KEY = 'habitra-midnight-session-v2';
 
-export type MidnightSession = {
-  lastPromptedDate?: string;
+export type DateSession = {
   dismissed?: boolean;
   completedCount?: number;
   snoozed?: boolean;
@@ -23,23 +23,27 @@ export type MidnightSession = {
   lastUpdate?: string;
 };
 
-export function getMidnightSession(): MidnightSession | null {
+export type MidnightSession = Record<string, DateSession>;
+
+export function getMidnightSession(): MidnightSession {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return {};
     return JSON.parse(raw) as MidnightSession;
   } catch {
-    return null;
+    return {};
   }
 }
 
-export function saveMidnightSession(data: Partial<MidnightSession>) {
-  const current = getMidnightSession() || {};
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+export function saveMidnightSession(dateStr: string, data: Partial<DateSession>) {
+  const session = getMidnightSession();
+  const current = session[dateStr] || {};
+  session[dateStr] = {
     ...current,
     ...data,
     lastUpdate: new Date().toISOString(),
-  }));
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
 export function clearMidnightSession() {
@@ -51,13 +55,30 @@ export function clearMidnightSession() {
  */
 export function hasPromptedForDate(dateStr: string) {
   const session = getMidnightSession();
-  return session?.lastPromptedDate === dateStr;
+  return !!session[dateStr];
 }
 
-export function isMidnightSessionDismissedToday(dateStr: string) {
+export function isMidnightSessionDismissed(dateStr: string) {
   const session = getMidnightSession();
-  return session?.lastPromptedDate === dateStr && session.dismissed === true;
+  return session[dateStr]?.dismissed === true;
 }
+
+const updateNativePendingCount = async () => {
+  if (Capacitor.getPlatform() !== 'android') return;
+  try {
+    const activeHabits = await HabitRepository.listActive();
+    const todayLogs = await LogRepository.forToday();
+    
+    const completedHabitIds = new Set(
+      todayLogs.filter(log => log.is_completed).map(log => log.habit_id)
+    );
+    
+    const pendingCount = activeHabits.filter(h => !completedHabitIds.has(h.id)).length;
+    await Midnight.setPendingCount({ count: pendingCount });
+  } catch (err) {
+    console.error('Failed to update native pending count:', err);
+  }
+};
 
 interface UseMidnightSchedulerProps {
   onTrigger: (date: string) => void;
@@ -68,6 +89,7 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
   const snoozeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const firedRef = useRef(false);
+  const hasRunLaunchCheckRef = useRef(false);
 
   const trigger = useCallback((date: string) => {
     if (!enabled) return;
@@ -92,7 +114,9 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
           hour: revH, 
           minute: revM,
           reminderMethod: preferences.reminderMethod || 'nag'
-        }).catch(err => console.error('Failed to schedule native midnight alarm:', err));
+        })
+        .then(() => updateNativePendingCount())
+        .catch(err => console.error('Failed to schedule native midnight alarm:', err));
       } else {
         Midnight.cancel().catch(err => console.error('Failed to cancel native midnight alarm:', err));
       }
@@ -109,21 +133,29 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
 
       const session = getMidnightSession();
 
+      // Periodically update the pending count on Android
+      if (m % 15 === 0) { // Every 15 minutes
+        updateNativePendingCount();
+      }
+
       // Case 1: Trigger at custom review time (or within 5 mins)
       // Only if reminders are enabled
       if (enabled) {
         const isCustomTimeWindow = h === revH && m >= revM && m <= revM + 5;
-        if (isCustomTimeWindow && !firedRef.current && session?.lastPromptedDate !== todayStr) {
+        if (isCustomTimeWindow && !firedRef.current && !session[todayStr]?.dismissed) {
           firedRef.current = true;
-          saveMidnightSession({ lastPromptedDate: todayStr, triggeredAt: new Date().toISOString() });
-          trigger(todayStr);
+          // Refresh count right before trigger
+          updateNativePendingCount().finally(() => {
+            saveMidnightSession(todayStr, { triggeredAt: new Date().toISOString() });
+            trigger(todayStr);
+          });
           return;
         }
 
         // Case 2: "Catch-up" Mode (5 hours past review time)
         const catchUpHour = (revH + 5) % 24;
-        if (h === catchUpHour && session?.lastPromptedDate !== todayStr) {
-          saveMidnightSession({ lastPromptedDate: todayStr, isCatchUp: true });
+        if (h === catchUpHour && !session[todayStr]?.dismissed) {
+          saveMidnightSession(todayStr, { isCatchUp: true });
           trigger(todayStr);
         }
 
@@ -136,12 +168,24 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
 
     // App Launch Catch-up Check (Runs regardless of 'enabled' toggle for push reminders)
     const runLaunchCheck = () => {
+      if (hasRunLaunchCheckRef.current) return;
+      hasRunLaunchCheckRef.current = true;
+
       const yesterday = subDays(new Date(), 1);
       const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
       const session = getMidnightSession();
+      const identity = appStore.getIdentity();
+
+      // Birth Date Guard: If the app was installed AFTER yesterday, we never prompt for yesterday.
+      if (identity.created_at) {
+        const installDateStr = identity.created_at.split('T')[0];
+        if (installDateStr > yesterdayStr) {
+          return;
+        }
+      }
 
       // If we haven't dismissed or completed yesterday's prompt, trigger it
-      if (session?.lastPromptedDate !== yesterdayStr || !session?.dismissed) {
+      if (!session[yesterdayStr]?.dismissed) {
         // We trigger for Yesterday
         onTrigger?.(yesterdayStr);
       }

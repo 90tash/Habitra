@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Bell } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -146,12 +146,15 @@ export default function Home() {
   const bestStreak = useMemo(() => Math.max(...habits.map(h => h.best_streak || 0), 0), [habits]);
   const currentStreak = useMemo(() => Math.max(...habits.map(h => h.current_streak || 0), 0), [habits]);
 
-  const handleTrigger = (targetDate: string) => {
+  const handleTrigger = useCallback((targetDate: string) => {
     // Smart Priority Logic:
     // If we trigger for Today, first check if Yesterday is done.
     const today = getTodayStr();
     if (targetDate === today) {
       const yesterdayIncomplete = habits.some(h => {
+        // Birth Date Check: Only habits created ON or BEFORE yesterday count.
+        if (h.created_date && h.created_date.split('T')[0] > yesterdayStr) return false;
+        
         const log = yesterdayLogs.find(l => l.habit_id === h.id);
         return !log?.is_completed;
       });
@@ -163,7 +166,7 @@ export default function Home() {
     }
     
     setMidnightCheckDate(targetDate);
-  };
+  }, [habits, yesterdayLogs, yesterdayStr]);
 
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate"

@@ -21,9 +21,14 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.MotionEvent;
+import android.util.DisplayMetrics;
+import android.animation.ValueAnimator;
+import android.view.animation.DecelerateInterpolator;
+import android.content.SharedPreferences;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.provider.Settings;
-
 import android.app.KeyguardManager;
 import android.media.AudioAttributes;
 
@@ -148,11 +153,72 @@ public class HabitReminderService extends Service {
             PixelFormat.TRANSLUCENT
         );
 
-        params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        params.gravity = Gravity.TOP | Gravity.START;
+        params.x = 0;
         params.y = 150;
 
         LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
         floatingView = inflater.inflate(getResources().getIdentifier("floating_reminder_layout", "layout", getPackageName()), null);
+
+        // Update Dynamic Content
+        TextView titleText = floatingView.findViewById(getResources().getIdentifier("title_text", "id", getPackageName()));
+        TextView subtextText = floatingView.findViewById(getResources().getIdentifier("subtext_text", "id", getPackageName()));
+        
+        SharedPreferences prefs = getSharedPreferences("habitra_reminders", Context.MODE_PRIVATE);
+        int pendingCount = prefs.getInt("pending_habit_count", 0);
+        
+        if (pendingCount > 0) {
+            titleText.setText("Check-in Required");
+            subtextText.setText(pendingCount + " habits remaining today");
+        } else {
+            titleText.setText("Daily Log");
+            subtextText.setText("Tap to review your habits");
+        }
+
+        floatingView.setOnTouchListener(new View.OnTouchListener() {
+            private int initialX;
+            private int initialY;
+            private float initialTouchX;
+            private float initialTouchY;
+            private boolean isDragging = false;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = params.x;
+                        initialY = params.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        isDragging = false;
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        int deltaX = (int) (event.getRawX() - initialTouchX);
+                        int deltaY = (int) (event.getRawY() - initialTouchY);
+                        
+                        // Small threshold for dragging to avoid accidental moves during tap
+                        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                            isDragging = true;
+                            params.x = initialX + deltaX;
+                            params.y = initialY + deltaY;
+                            windowManager.updateViewLayout(floatingView, params);
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                        if (!isDragging) {
+                            // It was a tap
+                            v.performClick();
+                        } else {
+                            // Snap to edge logic
+                            snapToEdge(params);
+                        }
+                        return true;
+                }
+                return false;
+            }
+        });
 
         floatingView.setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
@@ -163,6 +229,26 @@ public class HabitReminderService extends Service {
         });
 
         windowManager.addView(floatingView, params);
+    }
+
+    private void snapToEdge(WindowManager.LayoutParams params) {
+        DisplayMetrics metrics = new DisplayMetrics();
+        windowManager.getDefaultDisplay().getMetrics(metrics);
+        int screenWidth = metrics.widthPixels;
+        int viewWidth = floatingView.getWidth();
+
+        int targetX = (params.x + viewWidth / 2 < screenWidth / 2) ? 0 : screenWidth - viewWidth;
+
+        ValueAnimator animator = ValueAnimator.ofInt(params.x, targetX);
+        animator.setDuration(300);
+        animator.setInterpolator(new DecelerateInterpolator());
+        animator.addUpdateListener(animation -> {
+            params.x = (int) animation.getAnimatedValue();
+            if (floatingView != null && floatingView.getParent() != null) {
+                windowManager.updateViewLayout(floatingView, params);
+            }
+        });
+        animator.start();
     }
 
     private void startLoopingVibration() {
