@@ -23,6 +23,7 @@ import FirstLaunchPermissions from '@/components/onboarding/FirstLaunchPermissio
 import ProfileSetupWizard from '@/components/onboarding/ProfileSetupWizard';
 import { hasSeenFirstLaunchPermissions, isOnboardingComplete, markFirstLaunchPermissionsSeen } from '@/lib/onboarding';
 import { useAppStore } from '@/store/appStore';
+import { useTheme } from '@/lib/useTheme';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import Midnight from '@/lib/midnightPlugin';
@@ -30,6 +31,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const AuthenticatedApp = () => {
+  useTheme(); // Global theme sync
   const navigate = useNavigate();
   const identity = useAppStore((state) => state.identity);
   const preferences = useAppStore((state) => state.preferences);

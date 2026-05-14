@@ -34,14 +34,27 @@ export function applyAccent(colorIdx: number) {
 export function initializeTheme() {
   if (typeof window === 'undefined') return;
   
-  // Try to migrate from legacy keys if they exist
-  const legacyTheme = localStorage.getItem('hp-theme');
-  const legacyAccent = localStorage.getItem('hp-accent');
-  
-  // Note: Detailed migration happens when the store initializes via Zustand's persist
-  // This is a quick sync for the very first paint
-  const theme = legacyTheme || 'dark';
-  const accentIdx = Number(legacyAccent || 0);
+  let theme = 'dark';
+  let accentIdx = 0;
+
+  try {
+    const storage = localStorage.getItem('habitra-storage');
+    if (storage) {
+      const parsed = JSON.parse(storage);
+      if (parsed.state?.preferences) {
+        theme = parsed.state.preferences.theme || 'dark';
+        accentIdx = Number(parsed.state.preferences.accentColorIndex || 0);
+      }
+    } else {
+      // Fallback to legacy keys
+      const legacyTheme = localStorage.getItem('hp-theme');
+      const legacyAccent = localStorage.getItem('hp-accent');
+      if (legacyTheme) theme = legacyTheme;
+      if (legacyAccent) accentIdx = Number(legacyAccent);
+    }
+  } catch (e) {
+    console.error('Failed to initialize theme', e);
+  }
   
   applyTheme(theme);
   applyAccent(accentIdx);

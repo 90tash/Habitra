@@ -20,6 +20,7 @@ interface EmptyStateProps {
     onClick: () => void;
   };
   compact?: boolean;
+  hero?: boolean;
 }
 
 export default function EmptyState({ 
@@ -27,39 +28,59 @@ export default function EmptyState({
   title, 
   description, 
   action, 
-  compact = false 
+  compact = false,
+  hero = false
 }: EmptyStateProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-      className={`flex flex-col items-center text-center rounded-3xl card-shadow ${compact ? 'p-6' : 'p-10'}`}
+      initial={{ opacity: 0, y: 40, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      className={`flex flex-col items-center text-center rounded-[48px] border border-white/10 ${hero ? 'flex-1 py-16 px-8' : compact ? 'p-6' : 'p-10'}`}
       style={{
-        background: 'linear-gradient(135deg, hsl(var(--primary)/0.08), hsl(var(--accent)/0.05))',
-        backdropFilter: 'blur(20px)',
+        background: hero 
+          ? 'linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--accent)/0.15))' 
+          : 'linear-gradient(135deg, hsl(var(--primary)/0.08), hsl(var(--accent)/0.05))',
+        backdropFilter: 'blur(40px)',
+        minHeight: hero ? '520px' : 'auto',
+        boxShadow: hero ? '0 30px 60px -12px rgba(0,0,0,0.3)' : '0 10px 30px -12px rgba(0,0,0,0.1)',
       }}
     >
-      <motion.span
-        animate={{ scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }}
-        transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-        className={`select-none ${compact ? 'text-4xl mb-3' : 'text-6xl mb-5'}`}
-      >
-        {emoji}
-      </motion.span>
+      <div className="relative mb-8">
+        {hero && (
+          <motion.div 
+            animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 180, 270, 360] }}
+            transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+            className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full scale-150"
+          />
+        )}
+        <motion.span
+          animate={hero 
+            ? { y: [0, -15, 0], scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }
+            : { scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }
+          }
+          transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
+          className={`relative z-10 select-none drop-shadow-[0_20px_30px_rgba(0,0,0,0.3)] ${hero ? 'text-[140px]' : compact ? 'text-4xl mb-3' : 'text-6xl mb-5'}`}
+        >
+          {emoji}
+        </motion.span>
+      </div>
 
       {title && (
-        <p className={`font-bold ${compact ? 'text-sm' : 'text-base'}`}>{title}</p>
+        <h2 className={`font-bold font-space tracking-tight text-white ${hero ? 'text-3xl sm:text-4xl leading-tight' : compact ? 'text-sm' : 'text-base'}`}>{title}</h2>
       )}
       {description && (
-        <p className={`text-muted-foreground mt-1.5 leading-relaxed ${compact ? 'text-xs' : 'text-xs max-w-[220px]'}`}>
+        <p className={`text-muted-foreground mt-4 leading-relaxed ${hero ? 'text-base max-w-[280px] opacity-70' : compact ? 'text-xs' : 'text-xs max-w-[220px]'}`}>
           {description}
         </p>
       )}
       {action && (
-        <Button onClick={action.onClick} size={compact ? 'sm' : 'default'}
-          className={`rounded-xl font-semibold shadow-lg glow-primary ${compact ? 'mt-4 h-9 text-xs px-4' : 'mt-6 h-10 text-sm'}`}
-          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))' }}>
+        <Button onClick={action.onClick} size={hero ? 'lg' : compact ? 'sm' : 'default'}
+          className={`font-black shadow-2xl glow-primary transition-all hover:scale-105 active:scale-95 ${hero ? 'mt-12 h-24 w-full text-2xl rounded-[32px]' : 'rounded-full mt-6 h-10 text-sm'}`}
+          style={{ 
+            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8))',
+            boxShadow: hero ? '0 20px 40px -10px hsl(var(--primary)/0.5)' : 'none'
+          }}>
           {action.label}
         </Button>
       )}
