@@ -40,6 +40,7 @@ public class HabitReminderService extends Service {
     private PowerManager.WakeLock wakeLock;
     private WindowManager windowManager;
     private View floatingView;
+    private Notification lastNotification;
 
     @Override
     public void onCreate() {
@@ -88,6 +89,8 @@ public class HabitReminderService extends Service {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(logPI)
             .setAutoCancel(true)
+            .setVibrate(new long[]{0L})
+            .setOnlyAlertOnce(true)
             .addAction(android.R.drawable.ic_menu_edit, "Log Now", logPI)
             .addAction(android.R.drawable.ic_menu_recent_history, "Snooze", snoozePI)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", dismissPI);
@@ -105,14 +108,11 @@ public class HabitReminderService extends Service {
         }
 
         Notification notification = builder.build();
+        lastNotification = notification;
 
-        // Start as foreground but immediately stop-foreground-detach to make it swipable
+        // Start as foreground to protect from system being killed during vibration.
+        // We will stop-foreground-detach later in onDestroy so the notification remains swipable.
         startForeground(NOTIFICATION_ID, notification);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_DETACH);
-        } else {
-            stopForeground(false);
-        }
 
         if ("bubble".equals(method)) {
             showFloatingBubble();
@@ -288,9 +288,9 @@ public class HabitReminderService extends Service {
     private void acquireWakeLock() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         if (pm != null) {
-            // Increased duration to 30 seconds for better visibility
+            // Increased duration to 32 seconds to ensure vibration completes cleanly
             wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "Habitra:ServiceWake");
-            wakeLock.acquire(30000);
+            wakeLock.acquire(32000);
         }
     }
 
@@ -309,6 +309,21 @@ public class HabitReminderService extends Service {
 
     @Override
     public void onDestroy() {
+        // Detach from foreground
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_DETACH);
+        } else {
+            stopForeground(false);
+        }
+
+        // Manually re-post the notification so it stays in the tray and is swipable.
+        // We do this because Android often cleans up the foreground notification automatically 
+        // when a service is destroyed, even with the DETACH flag.
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null && lastNotification != null) {
+            nm.notify(NOTIFICATION_ID, lastNotification);
+        }
+
         if (vibrator != null) vibrator.cancel();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         if (windowManager != null && floatingView != null) {

@@ -12,7 +12,9 @@ import { appStore } from '@/store/appStore';
 import Midnight from './midnightPlugin';
 import { HabitRepository, LogRepository } from './repository';
 
-const STORAGE_KEY = 'habitra-midnight-session-v2';
+import type { Habit, DailyLog } from './types';
+
+const STORAGE_KEY = 'habitra-midnight-session';
 
 export type DateSession = {
   dismissed?: boolean;
@@ -83,9 +85,10 @@ const updateNativePendingCount = async () => {
 interface UseMidnightSchedulerProps {
   onTrigger: (date: string) => void;
   enabled?: boolean;
+  habits?: Habit[];
 }
 
-export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightSchedulerProps) {
+export function useMidnightScheduler({ onTrigger, enabled = true, habits = [] }: UseMidnightSchedulerProps) {
   const snoozeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const firedRef = useRef(false);
@@ -184,16 +187,23 @@ export function useMidnightScheduler({ onTrigger, enabled = true }: UseMidnightS
         }
       }
 
+      // Check if any habit existed yesterday
+      const hasHabitsYesterday = habits.some(h => {
+        if (!h.created_date) return true;
+        const localCreatedDateStr = format(new Date(h.created_date), 'yyyy-MM-dd');
+        return yesterdayStr >= localCreatedDateStr;
+      });
+
       // If we haven't dismissed or completed yesterday's prompt, trigger it
-      if (!session[yesterdayStr]?.dismissed) {
+      if (hasHabitsYesterday && (session?.lastPromptedDate !== yesterdayStr || !session?.dismissed)) {
         // We trigger for Yesterday
         onTrigger?.(yesterdayStr);
       }
     };
 
     // Delay checks slightly to let app initialize
-    const launchTimeout = setTimeout(runLaunchCheck, 1500);
-    const firstCheckTimeout = setTimeout(checkTime, 2500);
+    const launchTimeout = setTimeout(runLaunchCheck, 100);
+    const firstCheckTimeout = setTimeout(checkTime, 500);
     intervalRef.current = setInterval(checkTime, 60 * 1000);
 
     return () => {

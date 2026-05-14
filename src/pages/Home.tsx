@@ -152,9 +152,10 @@ export default function Home() {
     const today = getTodayStr();
     if (targetDate === today) {
       const yesterdayIncomplete = habits.some(h => {
-        // Birth Date Check: Only habits created ON or BEFORE yesterday count.
-        if (h.created_date && h.created_date.split('T')[0] > yesterdayStr) return false;
-        
+        if (h.created_date) {
+          const localCreatedDateStr = format(new Date(h.created_date), 'yyyy-MM-dd');
+          if (localCreatedDateStr > yesterdayStr) return false;
+        }
         const log = yesterdayLogs.find(l => l.habit_id === h.id);
         return !log?.is_completed;
       });
