@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { getLevelForXP, getNextLevel, getLevelProgress } from '@/lib/gamification';
+import { Mountain, Shield, Sparkles, Crown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function XPBar({ xp = 0 }) {
   const level = getLevelForXP(xp);
@@ -15,15 +17,24 @@ export default function XPBar({ xp = 0 }) {
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <span className="text-2xl">{level.icon}</span>
+          <div className={cn(
+            "p-2 rounded-xl bg-white/5 border border-white/10",
+            level.isRare && "border-purple-500/30",
+            level.isApex && "border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]"
+          )}>
+            {level.tier === 'Initiate' && <Mountain className="h-5 w-5 text-slate-400" />}
+            {level.tier === 'Builder' && <Shield className="h-5 w-5 text-emerald-400" />}
+            {level.tier === 'Legend' && !level.isApex && <Sparkles className="h-5 w-5 text-purple-400" />}
+            {level.isApex && <Crown className="h-5 w-5 text-yellow-400" />}
+          </div>
           <div>
-            <p className="text-sm font-bold">{level.title}</p>
-            <p className="text-[10px] text-muted-foreground">Level {level.level}</p>
+            <p className="text-sm font-bold" style={{ color: level.color }}>{level.title}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Rank {level.level}</p>
           </div>
         </div>
         <div className="text-right">
           <p className="text-sm font-bold text-primary">{xp} XP</p>
-          {next && <p className="text-[10px] text-muted-foreground">{next.xpRequired - xp} to next</p>}
+          {next && <p className="text-[10px] text-muted-foreground">{next.xpRequired - xp} more</p>}
         </div>
       </div>
 

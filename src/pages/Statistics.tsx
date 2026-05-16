@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, Tooltip
 } from 'recharts';
 import { 
@@ -12,13 +12,13 @@ import {
 } from 'date-fns';
 import { Flame, TrendingUp, Zap, ChevronLeft, ChevronRight, 
   CheckCircle2, Circle, LayoutGrid, Calendar as CalendarIcon, 
-  Sprout, Trophy, HelpCircle
+  Mountain, Trophy, HelpCircle, Shield, Sparkles, Crown, X
 } from 'lucide-react';
 import { HabitRepository, LogRepository } from '@/lib/repository';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useGamification } from '@/hooks/use-gamification';
-import { BADGES, Badge } from '@/lib/gamification';
+import { BADGES, Badge, LEVELS } from '@/lib/gamification';
 import XPBar from '@/components/gamification/XPBar';
 import InsightCard from '@/components/gamification/InsightCard';
 
@@ -46,13 +46,14 @@ const tooltipStyle = {
   }
 };
 
-type SubTab = 'stats' | 'calendar' | 'seedling' | 'badges';
+type SubTab = 'stats' | 'calendar' | 'path' | 'badges';
 
 export default function Statistics() {
   const [activeTab, setActiveTab] = useState<SubTab>('stats');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
+  const [showRankMap, setShowRankMap] = useState(false);
 
   const { 
     xp, 
@@ -83,10 +84,23 @@ export default function Statistics() {
     return { month: format(d, 'MMM'), completed: monthLogs.filter(l => l.is_completed).length };
   }), [logs]);
 
-  const radarData = useMemo(() => habits.slice(0, 6).map(h => {
-    const habitLogs = logs.filter(l => l.habit_id === h.id);
-    return { habit: h.title.length > 8 ? h.title.slice(0, 8) + '…' : h.title, score: habitLogs.length ? Math.round((habitLogs.filter(l => l.is_completed).length / habitLogs.length) * 100) : 0 };
-  }), [habits, logs]);
+  const radarData = useMemo(() => {
+    const categoryMap: Record<string, { total: number; completed: number }> = {};
+    
+    habits.forEach(h => {
+      const cat = h.category || 'other';
+      if (!categoryMap[cat]) categoryMap[cat] = { total: 0, completed: 0 };
+      
+      const habitLogs = logs.filter(l => l.habit_id === h.id);
+      categoryMap[cat].total += habitLogs.length;
+      categoryMap[cat].completed += habitLogs.filter(l => l.is_completed).length;
+    });
+
+    return Object.entries(categoryMap).map(([category, data]) => ({
+      category: category.charAt(0).toUpperCase() + category.slice(1),
+      score: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0
+    })).sort((a, b) => b.score - a.score);
+  }, [habits, logs]);
 
   // --- CALENDAR TAB DATA ---
   const calendarDays = useMemo(() => {
@@ -121,14 +135,13 @@ export default function Statistics() {
     <div className="px-4 pt-6 pb-32 space-y-6">
       <motion.div variants={itemVariants} initial="initial" animate="animate">
         <h1 className="text-3xl font-bold font-space gradient-text">Analytics</h1>
-        <p className="text-xs text-muted-foreground mt-1">Growth & performance tracking</p>
       </motion.div>
 
       {/* Sub-tab Navigation */}
       <div className="flex bg-muted/30 p-1.5 rounded-[22px] border border-white/5 sticky top-2 z-40 backdrop-blur-xl">
         <SubTabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} icon={LayoutGrid} label="Stats" />
         <SubTabButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={CalendarIcon} label="Calendar" />
-        <SubTabButton active={activeTab === 'seedling'} onClick={() => setActiveTab('seedling')} icon={Sprout} label="Seedling" />
+        <SubTabButton active={activeTab === 'path'} onClick={() => setActiveTab('path')} icon={Mountain} label="The Path" />
         <SubTabButton active={activeTab === 'badges'} onClick={() => setActiveTab('badges')} icon={Trophy} label="Badges" />
       </div>
 
@@ -153,23 +166,57 @@ export default function Statistics() {
 
               <ChartSection title="This Week" iconColor="bg-primary">
                 <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={weekData} barSize={26}>
-                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                    <YAxis hide />
-                    <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--primary)/0.08)', radius: 8 }} />
-                    <Bar dataKey="completed" radius={[8,8,0,0]} fill="hsl(var(--primary))" />
-                  </BarChart>
+                  <LineChart data={weekData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                    <XAxis 
+                      dataKey="day" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                      tickLine={false} 
+                      axisLine={false}
+                      dy={5}
+                    />
+                    <YAxis hide domain={[0, (dataMax: number) => Math.max(dataMax + 1, 5)]} />
+                    <Tooltip 
+                      {...tooltipStyle} 
+                      cursor={{ stroke: 'hsl(var(--primary)/0.2)', strokeWidth: 2 }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="completed" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={4}
+                      dot={{ fill: 'hsl(var(--primary))', r: 4, strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      animationDuration={1000}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartSection>
 
               <ChartSection title="Monthly Overview" iconColor="bg-chart-4">
                 <ResponsiveContainer width="100%" height={130}>
-                  <BarChart data={monthlyData} barSize={22}>
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                    <YAxis hide />
-                    <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--primary)/0.08)', radius: 8 }} />
-                    <Bar dataKey="completed" fill="hsl(var(--chart-4)/0.8)" radius={[7,7,0,0]} />
-                  </BarChart>
+                  <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                      tickLine={false} 
+                      axisLine={false}
+                      dy={5}
+                    />
+                    <YAxis hide domain={[0, (dataMax: number) => Math.max(dataMax + 1, 5)]} />
+                    <Tooltip 
+                      {...tooltipStyle} 
+                      cursor={{ stroke: 'hsl(var(--chart-4)/0.2)', strokeWidth: 2 }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="completed" 
+                      stroke="hsl(var(--chart-4))" 
+                      strokeWidth={3}
+                      dot={{ fill: 'hsl(var(--chart-4))', r: 3, strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      animationDuration={1000}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartSection>
 
@@ -178,7 +225,7 @@ export default function Statistics() {
                   <ResponsiveContainer width="100%" height={200}>
                     <RadarChart data={radarData}>
                       <PolarGrid stroke="hsl(var(--border))" />
-                      <PolarAngleAxis dataKey="habit" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
                       <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.18} strokeWidth={2} />
                     </RadarChart>
                   </ResponsiveContainer>
@@ -281,37 +328,79 @@ export default function Statistics() {
             </>
           )}
 
-          {/* --- SEEDLING TAB --- */}
-          {activeTab === 'seedling' && (
+          {/* --- THE PATH TAB --- */}
+          {activeTab === 'path' && (
             <div className="space-y-6">
-              <div className="glass rounded-[32px] p-8 border border-white/5 flex flex-col items-center text-center relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-primary/10 to-transparent" />
+              <div className={cn(
+                "glass rounded-[32px] p-8 border border-white/5 flex flex-col relative overflow-hidden transition-all duration-500",
+                level.tier === 'Initiate' && "shadow-[0_0_40px_rgba(255,255,255,0.05)]",
+                level.tier === 'Builder' && "shadow-[0_0_40px_rgba(34,197,94,0.05)]",
+                level.tier === 'Legend' && "shadow-[0_0_40px_rgba(168,85,247,0.1)]"
+              )}>
+                {/* Background Accent */}
+                <div className={cn(
+                  "absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-transparent to-transparent opacity-20",
+                  level.tier === 'Initiate' && "from-slate-400",
+                  level.tier === 'Builder' && "from-emerald-400",
+                  level.tier === 'Legend' && "from-purple-500"
+                )} />
                 
-                <motion.div 
-                  animate={{ y: [0, -10, 0], scale: [1, 1.05, 1] }}
-                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                  className="text-8xl mb-6 relative z-10 drop-shadow-[0_0_30px_rgba(124,92,252,0.3)]"
-                >
-                  {level.icon}
-                </motion.div>
-                
-                <h2 className="text-2xl font-bold font-space text-white">{level.title}</h2>
-                <p className="text-xs text-muted-foreground mt-2 max-w-[200px]">Your consistency is the sunlight that helps you grow.</p>
-                
-                <div className="w-full mt-10 space-y-4">
-                  <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Level Progress</span>
-                    <span className="text-xs font-bold font-space">{xp} XP</span>
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className={cn(
+                    "mb-6 p-4 rounded-3xl bg-white/5 border border-white/10",
+                    level.isRare && "border-purple-500/30 bg-purple-500/5",
+                    level.isApex && "border-yellow-500/30 bg-yellow-500/5 shadow-[0_0_30px_rgba(234,179,8,0.1)]"
+                  )}>
+                    {level.tier === 'Initiate' && <Mountain className="h-10 w-10 text-slate-400" />}
+                    {level.tier === 'Builder' && <Shield className="h-10 w-10 text-emerald-400" />}
+                    {level.tier === 'Legend' && !level.isApex && <Sparkles className="h-10 w-10 text-purple-400" />}
+                    {level.isApex && <Crown className="h-10 w-10 text-yellow-400 animate-pulse" />}
                   </div>
-                  <XPBar xp={xp} />
-                  <p className="text-[10px] text-muted-foreground italic mt-2">Next evolution at {level.level + 1}000 XP</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <GrowthUnlockCard title="New Badge Slots" level={2} currentLevel={level.level} desc="Unlock the ability to display more achievements." />
-                <GrowthUnlockCard title="Custom Themes" level={5} currentLevel={level.level} desc="Personalize your dashboard with premium accents." />
-                <GrowthUnlockCard title="Smart Predictions" level={10} currentLevel={level.level} desc="AI-powered insights based on your growth trends." />
+                  <div className="space-y-1">
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase tracking-[0.2em]",
+                      level.tier === 'Initiate' && "text-slate-400",
+                      level.tier === 'Builder' && "text-emerald-400",
+                      level.tier === 'Legend' && "text-purple-400"
+                    )}>
+                      {level.tier} Tier {level.isRare && "• Rare"} {level.isApex && "• Apex"}
+                    </span>
+                    <h2 className="text-3xl font-bold font-space" style={{ color: level.color }}>
+                      Rank {level.level} — {level.title}
+                    </h2>
+                    <p className="text-sm italic text-muted-foreground/80 font-serif">
+                      "{level.subtitle}"
+                    </p>
+                  </div>
+                  
+                  <div className="w-full mt-10 p-6 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
+                    <p className="text-sm text-left leading-relaxed text-slate-300 font-medium">
+                      {level.folklore}
+                    </p>
+                  </div>
+
+                  <div className="w-full mt-8 space-y-4">
+                    <div className="flex justify-between items-end">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ascension Progress</span>
+                      <span className="text-xs font-bold font-space">{xp} XP</span>
+                    </div>
+                    <XPBar xp={xp} />
+                    <p className="text-[10px] text-muted-foreground italic mt-2">
+                      {level.level === 10 
+                        ? "You have reached the peak of the Ascendant Path." 
+                        : `Next rank awaits at ${LEVELS[level.level]?.xpRequired || 0} XP`}
+                    </p>
+                  </div>
+
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowRankMap(true)}
+                    className="w-full mt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 hover:text-foreground hover:bg-white/5 rounded-2xl py-6 border border-white/5"
+                  >
+                    View All Ranks & Requirements
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -333,7 +422,7 @@ export default function Statistics() {
                     <motion.button
                       key={badge.id}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedBadge(badge)}
+                      onClick={() => setSelectedBadge({ ...badge, isUnlocked })}
                       className={cn(
                         "flex flex-col items-center gap-3 p-4 rounded-[24px] border transition-all relative overflow-hidden",
                         isUnlocked 
@@ -343,9 +432,6 @@ export default function Statistics() {
                     >
                       <span className="text-3xl">{badge.icon}</span>
                       <p className="text-[10px] font-bold text-center leading-tight line-clamp-1">{badge.title}</p>
-                      {isUnlocked && (
-                        <div className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-                      )}
                     </motion.button>
                   );
                 })}
@@ -354,17 +440,23 @@ export default function Statistics() {
               {/* Badge Details Popup */}
               <AnimatePresence>
                 {selectedBadge && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+                  <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-background/80 backdrop-blur-xl"
+                    onClick={() => setSelectedBadge(null)}
+                  >
                     <motion.div 
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.9, opacity: 0 }}
-                      className="glass rounded-[32px] p-8 border border-white/10 w-full max-w-xs text-center relative"
+                      onClick={(e) => e.stopPropagation()}
+                      className="glass rounded-[32px] p-8 border border-white/10 w-full max-w-xs text-center relative shadow-2xl"
                     >
-                      <button onClick={() => setSelectedBadge(null)} className="absolute top-4 right-4 p-2 text-muted-foreground">
-                        <Circle className="h-5 w-5 fill-white/5 border-none" />
-                      </button>
-                      <span className="text-6xl mb-4 inline-block">{selectedBadge.icon}</span>
+                      <span className={cn(
+                        "text-6xl mb-4 inline-block",
+                        !selectedBadge.isUnlocked && "grayscale opacity-50"
+                      )}>
+                        {selectedBadge.icon}
+                      </span>
                       <h3 className="text-xl font-bold font-space mt-2">{selectedBadge.title}</h3>
                       <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
                         {selectedBadge.desc}
@@ -375,6 +467,7 @@ export default function Statistics() {
                           <span className="text-[11px] font-bold uppercase tracking-widest">How to earn</span>
                         </div>
                         <p className="text-[10px] text-white/70 mt-2 font-medium">
+                          {selectedBadge.minRank && `Require Rank ${selectedBadge.minRank}: `}
                           {getBadgeRequirement(selectedBadge.id)}
                         </p>
                       </div>
@@ -388,6 +481,67 @@ export default function Statistics() {
             </div>
           )}
         </motion.div>
+      </AnimatePresence>
+
+      {/* Rank Map Overlay */}
+      <AnimatePresence>
+        {showRankMap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] bg-background/60 backdrop-blur-3xl p-6 overflow-y-auto"
+          >
+            <div className="max-w-md mx-auto space-y-8 pt-4 pb-20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold font-space">The Ascendant Path</h2>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Ranks & Requirements</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setShowRankMap(false)}
+                  className="rounded-full bg-white/5 border border-white/10"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="grid gap-3">
+                {LEVELS.map((l) => (
+                  <div 
+                    key={l.level}
+                    className={cn(
+                      "p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center gap-4",
+                      level.level === l.level && "border-primary/30 bg-primary/5 ring-1 ring-primary/20"
+                    )}
+                  >
+                    <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center text-xl shrink-0 border border-white/5">
+                      {l.tier === 'Initiate' && <Mountain className="h-5 w-5 text-slate-400" />}
+                      {l.tier === 'Builder' && <Shield className="h-5 w-5 text-emerald-400" />}
+                      {l.tier === 'Legend' && !l.isApex && <Sparkles className="h-5 w-5 text-purple-400" />}
+                      {l.isApex && <Crown className="h-5 w-5 text-yellow-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-muted-foreground">RANK {l.level}</span>
+                        {level.level === l.level && (
+                          <span className="text-[8px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded-md uppercase tracking-tighter">Current</span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold" style={{ color: l.color }}>{l.title}</h4>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold font-space">{l.xpRequired} XP</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Required</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -461,14 +615,22 @@ function GrowthUnlockCard({ title, level, currentLevel, desc }: any) {
 
 function getBadgeRequirement(id: string): string {
   switch(id) {
-    case 'first-step': return 'Complete your first habit session.';
-    case 'streak-3': return 'Maintain an active streak for 3 consecutive days.';
-    case 'streak-7': return 'Maintain an active streak for 7 consecutive days.';
-    case 'habit-master': return 'Reach a 30-day streak on any single habit.';
-    case 'perfectionist': return 'Complete all your active habits in a single day.';
-    case 'early-bird': return 'Complete a habit before 8:00 AM.';
-    case 'night-owl': return 'Complete a habit after 10:00 PM.';
-    case 'century': return 'Log a total of 100 habit completions.';
+    case 'nomad_spirit': return 'Complete 5 total habit sessions while at Rank 1.';
+    case 'seeker_truth': return 'Reach a 5-day streak on any habit while at Rank 2 or higher.';
+    case 'knight_vow': return 'Reach 100% consistency over 30 days while at Rank 6 or higher.';
+    case 'monarch_reign': return 'Complete 7 perfect days (all habits done) while at Rank 10.';
+    case 'first_habit': return 'Complete your first habit session.';
+    case 'streak_3': return 'Maintain an active streak for 3 consecutive days.';
+    case 'streak_7': return 'Maintain an active streak for 7 consecutive days.';
+    case 'streak_14': return 'Maintain an active streak for 14 consecutive days.';
+    case 'streak_30': return 'Maintain an active streak for 30 consecutive days.';
+    case 'perfect_day': return 'Complete all your active habits in a single day.';
+    case 'perfect_week': return 'Complete all your active habits for 7 consecutive days.';
+    case 'five_habits': return 'Track 5 or more habits simultaneously.';
+    case 'early_bird': return 'Complete a habit before 8:00 AM.';
+    case 'night_owl': return 'Complete a habit after 10:00 PM.';
+    case 'comeback': return 'Resume a habit after missing it for 3 or more days.';
+    case 'centurion': return 'Log a total of 100 habit completions.';
     default: return 'Keep growing your habits to unlock this achievement!';
   }
 }

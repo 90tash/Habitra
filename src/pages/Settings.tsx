@@ -444,13 +444,13 @@ export default function Settings() {
             <div className="flex justify-between items-end">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{level.title}</span>
-                  <span className="text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md shrink-0 uppercase">Level {level.level}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: level.color }}>{level.title}</span>
+                  <span className="text-[9px] font-bold bg-primary/10 px-1.5 py-0.5 rounded-md shrink-0 uppercase" style={{ color: level.color }}>Rank {level.level}</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground font-medium">{xp} XP earned</p>
               </div>
               {nextLevel && (
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{nextLevel.xpRequired - xp} XP to level {nextLevel.level}</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{nextLevel.xpRequired - xp} XP to rank {nextLevel.level}</span>
               )}
             </div>
             <div className="h-2.5 bg-background/50 rounded-full overflow-hidden border border-border/40 p-0.5">
